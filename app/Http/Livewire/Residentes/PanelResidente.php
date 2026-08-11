@@ -189,7 +189,50 @@ class PanelResidente extends Component
             'saldo' => $saldo,
             'estado' => $estadoResumen,
             'pagos' => $pagos,
+            'meses' => $this->detalleMensualDepartamento($departamentoNombre),
         ];
+    }
+
+    public function detalleMensualDepartamento($departamentoNombre)
+    {
+        $expensas = DB::table('expensas')
+            ->where('departamento_nombre', $departamentoNombre)
+            ->where('fecha_mes', '>=', '2024-08-01')
+            ->when($this->anioFiltro !== '', fn ($q) => $q->where('anio', (int) $this->anioFiltro))
+            ->when($this->mesFiltro !== '', fn ($q) => $q->where('mes', (int) $this->mesFiltro))
+            ->select('id', 'anio', 'mes', 'fecha_mes', 'monto_expensa', 'monto_pagado', 'saldo', 'estado', 'observacion')
+            ->orderByDesc('fecha_mes')
+            ->limit(12)
+            ->get();
+
+        return $expensas->map(function ($expensa) {
+            $pagos = DB::table('ingresos_bancarios_aplicaciones as iba')
+                ->join('ingresos_bancarios as ib', 'ib.id', '=', 'iba.ingreso_bancario_id')
+                ->where('iba.expensa_id', $expensa->id)
+                ->where('iba.estado', '!=', 'Anulado')
+                ->select(
+                    'ib.fecha',
+                    'ib.numero_comprobante',
+                    'ib.depositante',
+                    'iba.monto',
+                    'iba.estado_pago'
+                )
+                ->orderByDesc('ib.fecha')
+                ->get();
+
+            return (object) [
+                'id' => $expensa->id,
+                'anio' => $expensa->anio,
+                'mes' => $expensa->mes,
+                'mes_nombre' => $this->nombreMes((int) $expensa->mes),
+                'monto_expensa' => round((float) $expensa->monto_expensa, 2),
+                'monto_pagado' => round((float) $expensa->monto_pagado, 2),
+                'saldo' => round((float) $expensa->saldo, 2),
+                'estado' => $expensa->estado ?: 'Pendiente',
+                'observacion' => $expensa->observacion,
+                'pagos' => $pagos,
+            ];
+        });
     }
 
     public function getAniosDisponiblesProperty()

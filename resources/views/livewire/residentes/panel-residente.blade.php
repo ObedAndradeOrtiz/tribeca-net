@@ -147,19 +147,39 @@
                                 </div>
 
                                 <div class="resident-payments">
-                                    <h4>Ultimos ingresos aplicados</h4>
+                                    <h4>Detalle por mes</h4>
 
-                                    @forelse ($resumen['pagos'] as $pago)
-                                        <div class="resident-payment-row">
-                                            <div>
-                                                <strong>{{ $pago->depositante ?: 'Ingreso bancario' }}</strong>
-                                                <span>{{ \Carbon\Carbon::parse($pago->fecha)->format('d/m/Y') }} - Comp. {{ $pago->numero_comprobante ?: 'Sin comprobante' }}</span>
-                                                <small>{{ $pago->mes_pago }}/{{ $pago->anio_pago }} {{ $pago->estado_pago ? '- '.$pago->estado_pago : '' }}</small>
+                                    @forelse ($resumen['meses'] as $mes)
+                                        @php($mesClase = $mes->estado === 'Pagado' ? 'ok' : ($mes->estado === 'Parcial' ? 'pending' : 'off'))
+
+                                        <div class="resident-month-row {{ $mesClase }}">
+                                            <div class="resident-month-head">
+                                                <div>
+                                                    <strong>{{ $mes->mes_nombre }} {{ $mes->anio }}</strong>
+                                                    <span class="{{ $mesClase }}">{{ $mes->estado }}</span>
+                                                </div>
+
+                                                <div class="resident-month-money">
+                                                    <small>Expensa: Bs {{ number_format($mes->monto_expensa, 2) }}</small>
+                                                    <small>Pagado: Bs {{ number_format($mes->monto_pagado, 2) }}</small>
+                                                    <b>Saldo: Bs {{ number_format($mes->saldo, 2) }}</b>
+                                                </div>
                                             </div>
-                                            <b>Bs {{ number_format((float) $pago->monto, 2) }}</b>
+
+                                            <div class="resident-month-payments">
+                                                @forelse ($mes->pagos as $pago)
+                                                    <div>
+                                                        <span>{{ $pago->depositante ?: 'Ingreso bancario' }}</span>
+                                                        <small>{{ \Carbon\Carbon::parse($pago->fecha)->format('d/m/Y') }} - Comp. {{ $pago->numero_comprobante ?: 'Sin comprobante' }}</small>
+                                                        <b>Bs {{ number_format((float) $pago->monto, 2) }}</b>
+                                                    </div>
+                                                @empty
+                                                    <small>Sin pagos aplicados en este mes.</small>
+                                                @endforelse
+                                            </div>
                                         </div>
                                     @empty
-                                        <div class="resident-empty">Todavia no hay pagos aplicados para mostrar.</div>
+                                        <div class="resident-empty">No hay meses en el filtro seleccionado.</div>
                                     @endforelse
                                 </div>
                             </div>
@@ -573,6 +593,96 @@
             color: #1266f1;
         }
 
+        .resident-month-row {
+            border: 1px solid #e5ebf3;
+            border-left-width: 5px;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+
+        .resident-month-row.ok {
+            border-left-color: #10b981;
+        }
+
+        .resident-month-row.pending {
+            border-left-color: #f59e0b;
+        }
+
+        .resident-month-row.off {
+            border-left-color: #ef4444;
+        }
+
+        .resident-month-head {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: start;
+        }
+
+        .resident-month-head strong,
+        .resident-month-payments span {
+            display: block;
+            color: #172033;
+            font-weight: 900;
+        }
+
+        .resident-month-head span {
+            display: inline-flex;
+            border-radius: 999px;
+            padding: 5px 8px;
+            margin-top: 5px;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .resident-month-head .ok {
+            background: #eafaf2;
+            color: #0f7c55;
+        }
+
+        .resident-month-head .pending {
+            background: #fff7df;
+            color: #956400;
+        }
+
+        .resident-month-head .off {
+            background: #fff0f3;
+            color: #b42345;
+        }
+
+        .resident-month-money {
+            text-align: right;
+        }
+
+        .resident-month-money small,
+        .resident-month-payments small {
+            display: block;
+            color: #607086;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .resident-month-money b,
+        .resident-month-payments b {
+            color: #1266f1;
+            font-weight: 900;
+        }
+
+        .resident-month-payments {
+            display: grid;
+            gap: 7px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #edf1f5;
+        }
+
+        .resident-month-payments div {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+        }
+
         .resident-empty {
             border: 1px dashed #cfd8e5;
             border-radius: 8px;
@@ -652,6 +762,15 @@
             .resident-payment-row {
                 display: grid;
                 grid-template-columns: 1fr;
+            }
+
+            .resident-month-head,
+            .resident-month-payments div {
+                grid-template-columns: 1fr;
+            }
+
+            .resident-month-money {
+                text-align: left;
             }
         }
     </style>
