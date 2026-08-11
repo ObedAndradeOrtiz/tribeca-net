@@ -91,10 +91,6 @@ class PanelResidente extends Component
     public function getDepartamentosProperty()
     {
         return DB::table('tratamientos')
-            ->where(function ($q) {
-                $q->whereNull('estado')
-                    ->orWhere('estado', 'Activo');
-            })
             ->when(trim($this->busquedaDepartamento) !== '', function ($q) {
                 $busqueda = '%'.trim($this->busquedaDepartamento).'%';
 

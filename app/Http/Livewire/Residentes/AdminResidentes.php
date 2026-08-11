@@ -128,10 +128,6 @@ class AdminResidentes extends Component
     public function getDepartamentosDisponiblesProperty()
     {
         return DB::table('tratamientos')
-            ->where(function ($q) {
-                $q->whereNull('estado')
-                    ->orWhere('estado', 'Activo');
-            })
             ->select('id', 'nombre', 'TIPO')
             ->orderBy('nombre')
             ->get();
