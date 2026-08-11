@@ -19,6 +19,7 @@ class RedirectResidentRequests
             'logout',
             'login',
             'livewire/*',
+            'livewire/message/*',
             'storage/*',
             'assets/*',
             'auth/*',

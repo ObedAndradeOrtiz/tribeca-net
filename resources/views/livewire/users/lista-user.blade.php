@@ -70,6 +70,7 @@
                     <thead class="fw-bold text-muted bg-light">
                         <tr>
                             <th>Nombre</th>
+                            <th>Correo</th>
                             <th>Teléfono</th>
                             <th>Estado</th>
                             <th>Acción</th>
@@ -89,12 +90,15 @@
                                         {{ $lista->name }}
                                     </div>
                                     <div class="text-muted small">
-                                        {{ $lista->rol }}
+                                        {{ $lista->rol }} {{ $lista->ci ? '- CI '.$lista->ci : '' }}
                                     </div>
                                 </td>
 
+                                <!-- CORREO -->
+                                <td>{{ $lista->email ?: '-' }}</td>
+
                                 <!-- TEL -->
-                                <td>{{ $lista->telefono }}</td>
+                                <td>{{ $lista->telefono ?: '-' }}</td>
 
                                 <!-- ESTADO -->
                                 <td>
@@ -116,7 +120,7 @@
 
                         @empty
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-5">
+                                <td colspan="5" class="text-center text-muted py-5">
                                     <i class="bi bi-inbox fs-2 d-block mb-2"></i>
                                     No hay personal registrado
                                 </td>

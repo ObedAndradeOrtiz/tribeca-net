@@ -52,6 +52,11 @@ class Mantenimientos extends Component
 
     public function guardarTipo()
     {
+        $this->validate([
+            'nombreTipo' => ['required', 'string', 'max:255'],
+            'frecuencia' => ['required', 'integer', 'min:1'],
+        ]);
+
         TipoMantenimiento::create([
             'nombre' => $this->nombreTipo,
             'frecuencia_dias' => $this->frecuencia,
@@ -62,6 +67,12 @@ class Mantenimientos extends Component
 
     public function guardarProveedor()
     {
+        $this->validate([
+            'nombreProveedor' => ['required', 'string', 'max:255'],
+            'telefono' => ['nullable', 'string', 'max:255'],
+            'tipoProveedor' => ['required', 'exists:tipos_mantenimientos,id'],
+        ]);
+
         Proveedor::create([
             'nombre' => $this->nombreProveedor,
             'telefono' => $this->telefono,
@@ -73,6 +84,14 @@ class Mantenimientos extends Component
 
     public function guardarMantenimiento()
     {
+        $this->validate([
+            'tipoMantenimiento' => ['required', 'exists:tipos_mantenimientos,id'],
+            'proveedor' => ['required', 'exists:proveedores,id'],
+            'fecha' => ['required', 'date'],
+            'monto' => ['required', 'numeric', 'min:0'],
+            'comprobante' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
+        ]);
+
         $ruta = null;
 
         if ($this->comprobante) {

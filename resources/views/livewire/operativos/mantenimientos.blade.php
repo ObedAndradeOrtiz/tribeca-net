@@ -105,11 +105,11 @@
 
                                     <td>
                                         <span class="badge bg-light-primary text-dark">
-                                            {{ $m->tipo->nombre }}
+                                            {{ optional($m->tipo)->nombre ?: 'Sin tipo' }}
                                         </span>
                                     </td>
 
-                                    <td>{{ $m->proveedor->nombre }}</td>
+                                    <td>{{ optional($m->proveedor)->nombre ?: 'Sin proveedor' }}</td>
 
                                     <td>
                                         {{ \Carbon\Carbon::parse($m->fecha)->format('d/m/Y H:i') }}
@@ -215,7 +215,7 @@
                             <tr>
                                 <td>{{ $p->nombre }}</td>
                                 <td>{{ $p->telefono }}</td>
-                                <td>{{ $p->tipo->nombre }}</td>
+                                <td>{{ optional($p->tipo)->nombre ?: 'Sin tipo' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -25,7 +25,7 @@ class ListaUser extends Component
     public $activado;
     public $fechaInicioMes;
     public $fechaActual;
-    public $estadoUser = 'Activo';
+    public $estadoUser = 'todos';
     public $rolseleccionado = '';
     public $roles;
     protected $listeners = ['render' => 'render', 'configurarSistema' => 'configurarSistema'];
@@ -37,13 +37,31 @@ class ListaUser extends Component
     public function render()
     {
         $this->areas = Areas::where('estado', 'Activo')->get();
-        if ($this->estadoUser == 'todos') {
-            $users = User::where('sucursal', 'LIKE', '%' . $this->areaseleccionada . '%')->where('name', 'LIKE', '%' . $this->busqueda . '%')->where('rol', 'LIKE', '%' . $this->rolseleccionado . '%')->where('rol', '!=', 'Cliente')->orderBy('name', 'asc')->paginate(10);
-        } else {
-            $users = User::where('sucursal', 'LIKE', '%' . $this->areaseleccionada . '%')->where('name', 'LIKE', '%' . $this->busqueda . '%')->where('rol', 'LIKE', '%' . $this->rolseleccionado . '%')->where('rol', '!=', 'Cliente')->where('estado', $this->estadoUser)->orderBy('name', 'asc')->paginate(10);
-        }
+        $busqueda = '%' . $this->busqueda . '%';
 
-        $this->roles = Roles::where('estado', 'Activo')->get();
+        $users = User::query()
+            ->where('sucursal', 'LIKE', '%' . $this->areaseleccionada . '%')
+            ->where(function ($query) {
+                $query->whereNull('rol')
+                    ->orWhereRaw("LOWER(rol) NOT IN ('cliente', 'residente')");
+            })
+            ->when($this->rolseleccionado !== '', fn ($query) => $query->where('rol', $this->rolseleccionado))
+            ->when($this->estadoUser !== 'todos', fn ($query) => $query->where('estado', $this->estadoUser))
+            ->where(function ($query) use ($busqueda) {
+                $query->where('name', 'LIKE', $busqueda)
+                    ->orWhere('email', 'LIKE', $busqueda)
+                    ->orWhere('telefono', 'LIKE', $busqueda)
+                    ->orWhere('ci', 'LIKE', $busqueda)
+                    ->orWhere('rol', 'LIKE', $busqueda);
+            })
+            ->orderBy('name', 'asc')
+            ->paginate(10);
+
+        $this->roles = Roles::where('estado', 'Activo')
+            ->whereRaw("LOWER(rol) NOT IN ('cliente', 'residente')")
+            ->orderBy('rol')
+            ->get();
+
         return view('livewire.users.lista-user', compact('users'));
     }
     public function activarsistema()
