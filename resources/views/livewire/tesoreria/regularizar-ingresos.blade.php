@@ -1130,30 +1130,35 @@
     @endif
 
     @if ($modalImportarIngresos)
-        <div class="reg-modal-backdrop">
-            <div class="reg-modal-panel modal-create-income">
-                <div class="reg-modal-head">
+        <div class="excel-modal-backdrop">
+            <div class="excel-modal-panel">
+                <div class="excel-modal-head">
                     <div>
                         <span>Importacion Excel</span>
                         <h4>Cargar ingresos bancarios</h4>
                         <p>Primero se valida todo el archivo. Si hay errores, no se guarda ningun dato.</p>
                     </div>
 
-                    <button type="button" class="reg-modal-close" wire:click="$set('modalImportarIngresos', false)">
+                    <button type="button" wire:click="$set('modalImportarIngresos', false)">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
 
-                <div class="form-grid">
-                    <label class="span-2">
-                        Archivo Excel
+                <label class="excel-upload-box">
+                    <i class="bi bi-file-earmark-excel"></i>
+                    <span>
+                        <strong>Archivo Excel</strong>
+                        <small>Usa la plantilla descargada para evitar errores.</small>
                         <input type="file" wire:model="archivoImportacion" accept=".xlsx,.xls,.csv">
                         @error('archivoImportacion') <small>{{ $message }}</small> @enderror
-                    </label>
-                </div>
+                    </span>
+                </label>
 
-                <div class="section-footer">
-                    <button type="button" class="btn-line" wire:click="validarImportacionIngresos" wire:loading.attr="disabled">
+                <div class="excel-modal-actions">
+                    <button type="button" class="secondary" wire:click="$set('modalImportarIngresos', false)">
+                        Cancelar
+                    </button>
+                    <button type="button" class="primary" wire:click="validarImportacionIngresos" wire:loading.attr="disabled">
                         <span wire:loading.remove wire:target="validarImportacionIngresos">Paso 1: revisar archivo</span>
                         <span wire:loading wire:target="validarImportacionIngresos">Revisando...</span>
                     </button>
@@ -1186,8 +1191,8 @@
                         @endforeach
                     </div>
 
-                    <div class="section-footer">
-                        <button type="button" class="btn-save-income" wire:click="confirmarImportacionIngresos" wire:loading.attr="disabled">
+                    <div class="excel-modal-actions">
+                        <button type="button" class="primary" wire:click="confirmarImportacionIngresos" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="confirmarImportacionIngresos">Paso 2: subir y aplicar</span>
                             <span wire:loading wire:target="confirmarImportacionIngresos">Subiendo...</span>
                         </button>
@@ -1198,6 +1203,172 @@
     @endif
 
     <style>
+        .excel-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1060;
+            background: rgba(15, 23, 42, .58);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            overflow-y: auto;
+        }
+
+        .excel-modal-panel {
+            width: min(760px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+            padding: 18px;
+        }
+
+        .excel-modal-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: flex-start;
+            border-bottom: 1px solid #edf1f5;
+            padding-bottom: 14px;
+        }
+
+        .excel-modal-head span {
+            display: block;
+            color: #1266f1;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .excel-modal-head h4 {
+            margin: 3px 0 4px;
+            color: #111827;
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .excel-modal-head p {
+            margin: 0;
+            color: #607086;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .excel-modal-head button {
+            flex: 0 0 auto;
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 8px;
+            background: #eef2f7;
+            color: #344256;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .excel-upload-box {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            border: 1px dashed #b9c7db;
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 14px;
+            background: #f8fafc;
+        }
+
+        .excel-upload-box > i {
+            font-size: 24px;
+            color: #0f7c55;
+        }
+
+        .excel-upload-box span {
+            display: grid;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .excel-upload-box strong {
+            color: #172033;
+            font-weight: 900;
+        }
+
+        .excel-upload-box small {
+            color: #607086;
+            font-weight: 750;
+        }
+
+        .excel-upload-box input {
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .excel-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .excel-modal-actions button {
+            min-height: 42px;
+            border: 0;
+            border-radius: 8px;
+            padding: 0 14px;
+            font-weight: 900;
+        }
+
+        .excel-modal-actions .secondary {
+            background: #eef2f7;
+            color: #344256;
+        }
+
+        .excel-modal-actions .primary {
+            background: #1266f1;
+            color: #ffffff;
+        }
+
+        @media (max-width: 700px) {
+            .excel-modal-backdrop {
+                align-items: flex-start;
+                padding: 10px;
+            }
+
+            .excel-modal-panel {
+                max-height: calc(100vh - 20px);
+                padding: 14px;
+                border-radius: 8px;
+            }
+
+            .excel-modal-head {
+                gap: 10px;
+            }
+
+            .excel-modal-head h4 {
+                font-size: 19px;
+            }
+
+            .excel-modal-head p {
+                font-size: 13px;
+            }
+
+            .excel-upload-box {
+                display: grid;
+            }
+
+            .excel-modal-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .excel-modal-actions button {
+                width: 100%;
+            }
+        }
+
         .import-box {
             display: grid;
             gap: 6px;
