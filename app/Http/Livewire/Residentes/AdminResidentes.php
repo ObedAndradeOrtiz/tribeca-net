@@ -19,6 +19,8 @@ class AdminResidentes extends Component
 
     public $mensaje = '';
 
+    public $busquedaDepartamento = '';
+
     public function mount()
     {
         abort_unless(Auth::check() && Auth::user()->rol !== 'residente', 403);
@@ -128,6 +130,14 @@ class AdminResidentes extends Component
     public function getDepartamentosDisponiblesProperty()
     {
         return DB::table('tratamientos')
+            ->when(trim($this->busquedaDepartamento) !== '', function ($q) {
+                $busqueda = '%'.trim($this->busquedaDepartamento).'%';
+
+                $q->where(function ($subquery) use ($busqueda) {
+                    $subquery->where('nombre', 'like', $busqueda)
+                        ->orWhere('TIPO', 'like', $busqueda);
+                });
+            })
             ->select('id', 'nombre', 'TIPO')
             ->orderBy('nombre')
             ->get();

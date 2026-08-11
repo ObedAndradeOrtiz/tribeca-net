@@ -32,13 +32,20 @@
                 </label>
             </div>
 
+            <label class="admin-resident-search">
+                <i class="bi bi-search"></i>
+                <input type="search" wire:model.debounce.350ms="busquedaDepartamento" placeholder="Buscar departamento, comercio u oficina">
+            </label>
+
             <div class="admin-resident-depts">
-                @foreach ($this->departamentosDisponibles as $departamento)
+                @forelse ($this->departamentosDisponibles as $departamento)
                     <label>
                         <input type="checkbox" wire:model.defer="departamentos" value="{{ $departamento->id }}">
                         <span>{{ $departamento->nombre }}</span>
                     </label>
-                @endforeach
+                @empty
+                    <div class="admin-resident-empty">No encontramos resultados con esa busqueda.</div>
+                @endforelse
             </div>
 
             <button type="button" class="admin-resident-primary" wire:click="crearCodigo">
@@ -184,6 +191,27 @@
             border-radius: 8px;
             padding: 0 12px;
             margin-top: 6px;
+        }
+
+        .admin-resident-search {
+            height: 42px;
+            border: 1px solid #d9e1ec;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 0 12px;
+            margin-top: 14px;
+            color: #607086;
+            background: #ffffff;
+        }
+
+        .admin-resident-search input {
+            width: 100%;
+            border: 0;
+            outline: 0;
+            color: #172033;
+            font-weight: 800;
         }
 
         .admin-resident-depts,
