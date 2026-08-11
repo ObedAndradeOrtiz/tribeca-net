@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Http\Livewire\Tratamientos;
+
+use Livewire\Component;
+use App\Models\ListaTratamiento;
+use App\Models\Tratamiento;
+
+class CrearTratamiento extends Component
+{
+    public $nombre;
+    public $descripcion;
+    public $costo=0;
+    public $crear = false;
+    public $tipo = "matrimonial";
+    public $capacidad=0;
+    public $area="";
+    public function render()
+    {
+        return view('livewire.tratamientos.crear-tratamiento');
+    }
+    public function guardartodo()
+    {
+        $tratamiento = new Tratamiento;
+        $tratamiento->nombre = $this->nombre;
+        $tratamiento->descripcion = $this->descripcion;
+        $tratamiento->estado = 'Activo';
+        $tratamiento->costo = $this->costo;
+        $tratamiento->tipo = $this->tipo;
+        $tratamiento->capacidad=$this->capacidad;
+        $tratamiento->sucursal=$this->area;
+        $tratamiento->save();
+        $this->crear = false;
+        $this->emit('alert', '¡Habitación creada satisfactoriamente!');
+        $this->emitTo('tratamientos.lista-tratamientos', 'render');
+    }
+}
