@@ -85,9 +85,7 @@ Route::get('/login-direct', function () {
 })->name('login-direct');
 Route::get('/custom-login/{idphone}', CustomLogin::class);
 Route::post('/guardar-datos', [CargaMasiva::class, 'guardarDatos']);
-Route::get('/foto', function () {
-    return view('foto');
-});
+
 Route::get('/pdf/{idsuario}', function ($idusuario) {
     return view('pdfview', compact('idusuario'));
 });

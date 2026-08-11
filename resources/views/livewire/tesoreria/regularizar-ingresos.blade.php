@@ -24,7 +24,7 @@
             </div>
             <button type="button" class="btn-report-debt" wire:click="abrirReporteDeudas">
                 <i class="bi bi-file-earmark-text"></i>
-                Reporte de deudas
+                Reporte deudas
             </button>
             <button type="button" class="btn-report-debt" wire:click="descargarPlantillaIngresos">
                 <i class="bi bi-file-earmark-excel"></i>
