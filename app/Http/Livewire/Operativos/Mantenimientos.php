@@ -123,6 +123,7 @@ class Mantenimientos extends Component
         ]);
 
         $this->reset(['tipoMantenimiento', 'proveedor', 'fecha', 'monto', 'descripcion', 'comprobante']);
+        $this->emit('alert', 'Mantenimiento registrado correctamente.');
     }
 
     public function abrirEditar($id)
@@ -185,6 +186,7 @@ class Mantenimientos extends Component
         ]);
 
         $this->cerrarModal();
+        $this->emit('alert', 'Mantenimiento actualizado correctamente.');
     }
 
     public function confirmarEliminar($id)
@@ -205,6 +207,7 @@ class Mantenimientos extends Component
         }
 
         $this->cerrarModal();
+        $this->emit('alert', 'Mantenimiento eliminado correctamente.');
     }
 
     public function cerrarModal()

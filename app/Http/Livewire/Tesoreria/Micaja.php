@@ -280,7 +280,13 @@ class Micaja extends Component
 
 $hoy = Carbon::today();
 
-$this->notificaciones = \App\Models\Mantenimiento::get()->map(function ($m) use ($hoy) {
+$this->notificaciones = \App\Models\Mantenimiento::with('tipo', 'proveedor')
+    ->whereNotNull('fecha_siguiente')
+    ->whereDate('fecha_siguiente', '<=', $hoy->copy()->addDays(15))
+    ->orderBy('fecha_siguiente')
+    ->limit(12)
+    ->get()
+    ->map(function ($m) use ($hoy) {
 
     $fecha = Carbon::parse($m->fecha_siguiente);
     $dias = $hoy->diffInDays($fecha, false); // puede ser negativo

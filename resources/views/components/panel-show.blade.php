@@ -10,6 +10,10 @@
         });
 
         $permisos = $rolesderol->pluck('vista')->toArray();
+        $mantenimientosNotificaciones = DB::table('mantenimientos')
+            ->whereNotNull('fecha_siguiente')
+            ->whereDate('fecha_siguiente', '<=', now()->addDays(15)->toDateString())
+            ->count();
     @endphp
 
     @if (Auth::user()->rol === 'residente')
@@ -71,6 +75,11 @@
                                     data-kt-menu-trigger="click" data-kt-menu-attach="parent"
                                     data-kt-menu-placement="bottom-end">
                                     <i class="ki-outline ki-notification-bing text-warning fs-1"></i>
+                                    @if ($mantenimientosNotificaciones > 0)
+                                        <span class="position-absolute top-0 start-100 translate-middle badge badge-circle badge-danger">
+                                            {{ $mantenimientosNotificaciones > 9 ? '9+' : $mantenimientosNotificaciones }}
+                                        </span>
+                                    @endif
                                 </div>
 
                                 <div class="menu menu-sub menu-sub-dropdown menu-column w-350px w-lg-375px"

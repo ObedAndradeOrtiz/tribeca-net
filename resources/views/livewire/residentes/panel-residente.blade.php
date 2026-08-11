@@ -195,7 +195,7 @@
             <div class="resident-request-tools">
                 <label class="resident-search">
                     <i class="bi bi-search"></i>
-                    <input type="search" wire:model.debounce.350ms="busquedaDepartamento" placeholder="Buscar departamento">
+                    <input type="search" wire:model.debounce.350ms="busquedaDepartamento" placeholder="Buscar">
                 </label>
 
                 <button type="button" class="resident-primary-btn" wire:click="solicitarAccesos">
@@ -716,8 +716,7 @@
 
             .resident-form-grid,
             .resident-money-grid,
-            .resident-filter-grid,
-            .resident-request-tools {
+            .resident-filter-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -730,18 +729,35 @@
             }
 
             .resident-tabs {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 6px;
                 background: #eef4ff;
             }
 
             .resident-tabs button {
-                min-height: 50px;
-                font-size: 14px;
+                min-height: 46px;
+                padding: 0 8px;
+                font-size: 12px;
+                line-height: 1.15;
+            }
+
+            .resident-request-tools {
+                grid-template-columns: minmax(0, 1fr) 112px;
+                gap: 8px;
+            }
+
+            .resident-search {
+                min-width: 0;
+                padding: 0 10px;
+            }
+
+            .resident-search input {
+                font-size: 13px;
             }
 
             .resident-primary-btn {
                 min-width: 42px;
+                padding: 0 10px;
             }
 
             .resident-dept-summary {

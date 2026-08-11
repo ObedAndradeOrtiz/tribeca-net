@@ -35,11 +35,21 @@
                         <!-- TEXTO -->
                         <div>
                             <div class="fw-bold text-gray-800">
-                                {{ $n->nombre ?? 'Mantenimiento' }}
+                                {{ optional($n->tipo)->nombre ?: ($n->nombre ?? 'Mantenimiento') }}
                             </div>
 
                             <div class="text-muted small">
-                                {{ $n->mensaje }}
+                                {{ optional($n->proveedor)->nombre ?: ($n->proveedor_nombre ?? 'Sin proveedor') }}
+                            </div>
+
+                            <div class="text-muted small">
+                                @if ($n->dias_restantes < 0)
+                                    Vencido hace {{ abs($n->dias_restantes) }} dia(s)
+                                @elseif ($n->dias_restantes == 0)
+                                    Debe realizarse hoy
+                                @else
+                                    Faltan {{ $n->dias_restantes }} dia(s)
+                                @endif
                             </div>
 
                             <div class="text-muted small mt-1">
@@ -54,7 +64,13 @@
                     <div class="text-end">
 
                         <span class="badge badge-light-{{ $n->color }} fw-bold px-4 py-2">
-                            {{ $n->dias_restantes }} días
+                            @if ($n->dias_restantes < 0)
+                                Vencido
+                            @elseif ($n->dias_restantes == 0)
+                                Hoy
+                            @else
+                                {{ $n->dias_restantes }} dias
+                            @endif
                         </span>
 
                     </div>
