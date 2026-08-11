@@ -1,6 +1,0 @@
----
-deployment:
-  tasks:
-    - export DEPLOYPATH=/home/guislain/tribeca
-    - /bin/mkdir -p $DEPLOYPATH
-    - /bin/rsync -a --delete --exclude='.git' --exclude='.cpanel.yml' --exclude='.env' --exclude='node_modules' --exclude='vendor' --exclude='storage/app/*' --exclude='storage/framework/cache/data/*' --exclude='storage/framework/sessions/*' --exclude='storage/framework/views/*' --exclude='storage/logs/*' ./ $DEPLOYPATH/
