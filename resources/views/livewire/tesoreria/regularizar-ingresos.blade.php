@@ -26,6 +26,14 @@
                 <i class="bi bi-file-earmark-text"></i>
                 Reporte de deudas
             </button>
+            <button type="button" class="btn-report-debt" wire:click="descargarPlantillaIngresos">
+                <i class="bi bi-file-earmark-excel"></i>
+                Plantilla Excel
+            </button>
+            <button type="button" class="btn-report-debt" wire:click="abrirImportarIngresos">
+                <i class="bi bi-upload"></i>
+                Subir Excel
+            </button>
             <button type="button" class="btn-new-income" wire:click="abrirCrearIngreso">
                 Nuevo ingreso
             </button>
@@ -1121,7 +1129,126 @@
         </div>
     @endif
 
+    @if ($modalImportarIngresos)
+        <div class="reg-modal-backdrop">
+            <div class="reg-modal-panel modal-create-income">
+                <div class="reg-modal-head">
+                    <div>
+                        <span>Importacion Excel</span>
+                        <h4>Cargar ingresos bancarios</h4>
+                        <p>Primero se valida todo el archivo. Si hay errores, no se guarda ningun dato.</p>
+                    </div>
+
+                    <button type="button" class="reg-modal-close" wire:click="$set('modalImportarIngresos', false)">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="form-grid">
+                    <label class="span-2">
+                        Archivo Excel
+                        <input type="file" wire:model="archivoImportacion" accept=".xlsx,.xls,.csv">
+                        @error('archivoImportacion') <small>{{ $message }}</small> @enderror
+                    </label>
+                </div>
+
+                <div class="section-footer">
+                    <button type="button" class="btn-line" wire:click="validarImportacionIngresos" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="validarImportacionIngresos">Paso 1: revisar archivo</span>
+                        <span wire:loading wire:target="validarImportacionIngresos">Revisando...</span>
+                    </button>
+                </div>
+
+                @if ($importacionErrores)
+                    <div class="import-box error">
+                        <strong>Errores encontrados</strong>
+                        @foreach ($importacionErrores as $error)
+                            <span>{{ $error }}</span>
+                        @endforeach
+                    </div>
+                @endif
+
+                @if ($importacionValida)
+                    <div class="import-box ok">
+                        <strong>Archivo listo para subir</strong>
+                        <span>Ingresos: {{ $importacionResumen['ingresos'] ?? 0 }}</span>
+                        <span>Aplicaciones: {{ $importacionResumen['aplicaciones'] ?? 0 }}</span>
+                        <span>Total ingresos: Bs {{ number_format($importacionResumen['monto_total'] ?? 0, 2) }}</span>
+                        <span>Total a aplicar: Bs {{ number_format($importacionResumen['monto_aplicar'] ?? 0, 2) }}</span>
+                    </div>
+
+                    <div class="import-preview">
+                        @foreach ($importacionPreview as $item)
+                            <div>
+                                <strong>{{ $item['departamento'] }}</strong>
+                                <span>{{ implode(', ', $item['meses']) }}/{{ $item['anio'] }} - Bs {{ number_format($item['monto'], 2) }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="section-footer">
+                        <button type="button" class="btn-save-income" wire:click="confirmarImportacionIngresos" wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="confirmarImportacionIngresos">Paso 2: subir y aplicar</span>
+                            <span wire:loading wire:target="confirmarImportacionIngresos">Subiendo...</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
     <style>
+        .import-box {
+            display: grid;
+            gap: 6px;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 14px;
+            font-weight: 800;
+        }
+
+        .import-box strong {
+            font-weight: 900;
+        }
+
+        .import-box.error {
+            background: #fff0f3;
+            color: #b42345;
+            border: 1px solid #ffd6df;
+        }
+
+        .import-box.ok {
+            background: #eafaf2;
+            color: #0f7c55;
+            border: 1px solid #c8f0dd;
+        }
+
+        .import-preview {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+            max-height: 240px;
+            overflow: auto;
+        }
+
+        .import-preview div {
+            border: 1px solid #edf1f5;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .import-preview strong,
+        .import-preview span {
+            display: block;
+        }
+
+        .import-preview span {
+            color: #607086;
+            font-size: 12px;
+            font-weight: 800;
+            margin-top: 2px;
+        }
+
         .income-actions {
             display: inline-flex;
             align-items: center;

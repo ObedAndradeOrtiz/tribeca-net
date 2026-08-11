@@ -8,10 +8,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\WithFileUploads;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class RegularizarIngresos extends Component
 {
     use WithPagination;
+    use WithFileUploads;
 
     protected $paginationTheme = 'bootstrap';
 
@@ -93,11 +98,298 @@ class RegularizarIngresos extends Component
 
     public $labelTotalIngresos = '';
 
+    public $modalImportarIngresos = false;
+
+    public $archivoImportacion;
+
+    public $importacionErrores = [];
+
+    public $importacionResumen = [];
+
+    public $importacionPreview = [];
+
+    public $importacionDatos = [];
+
+    public $importacionValida = false;
+
     public function abrirReporteDeudas()
     {
         $this->anioReporteDeudas = $this->anio ?: 2025;
         $this->generarReporteDeudas();
         $this->modalReporteDeudas = true;
+    }
+
+    public function descargarPlantillaIngresos()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Ingresos');
+
+        $headers = [
+            'fecha_banco',
+            'hora',
+            'depositante',
+            'numero_comprobante',
+            'detalle',
+            'monto_total_ingreso',
+            'departamento',
+            'anio_pago',
+            'meses_pago',
+            'monto_a_aplicar',
+            'observacion',
+        ];
+
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->fromArray([
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 2000, 'DPTO 10A', 2026, '12', 500, 'Diciembre 2026'],
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 2000, 'DPTO 10A', 2027, '1', 500, 'Enero 2027'],
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 2000, 'DPTO 10B', 2026, '11,12', 1000, 'Se aplica en orden de meses'],
+        ], null, 'A2');
+
+        foreach (range('A', 'K') as $column) {
+            $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $help = $spreadsheet->createSheet();
+        $help->setTitle('Departamentos');
+        $help->fromArray(['departamento', 'tipo'], null, 'A1');
+
+        $departamentos = DB::table('tratamientos')
+            ->select('nombre', 'TIPO')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn ($d) => [$d->nombre, $d->TIPO])
+            ->toArray();
+
+        if ($departamentos) {
+            $help->fromArray($departamentos, null, 'A2');
+        }
+
+        $help->getColumnDimension('A')->setAutoSize(true);
+        $help->getColumnDimension('B')->setAutoSize(true);
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'plantilla-ingresos-bancarios.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function abrirImportarIngresos()
+    {
+        $this->reset([
+            'archivoImportacion',
+            'importacionErrores',
+            'importacionResumen',
+            'importacionPreview',
+            'importacionDatos',
+            'importacionValida',
+        ]);
+
+        $this->modalImportarIngresos = true;
+    }
+
+    public function validarImportacionIngresos()
+    {
+        $this->validate([
+            'archivoImportacion' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240'],
+        ]);
+
+        $this->importacionErrores = [];
+        $this->importacionResumen = [];
+        $this->importacionPreview = [];
+        $this->importacionDatos = [];
+        $this->importacionValida = false;
+
+        $spreadsheet = IOFactory::load($this->archivoImportacion->getRealPath());
+        $rows = $spreadsheet->getSheetByName('Ingresos')
+            ? $spreadsheet->getSheetByName('Ingresos')->toArray(null, true, true, true)
+            : $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
+
+        $departamentosValidos = DB::table('tratamientos')->pluck('nombre')->map(fn ($n) => mb_strtoupper(trim($n), 'UTF-8'))->toArray();
+        $ingresos = [];
+        $aplicaciones = [];
+
+        foreach ($rows as $index => $row) {
+            if ($index === 1) {
+                continue;
+            }
+
+            $fecha = trim((string) ($row['A'] ?? ''));
+            $depositante = trim((string) ($row['C'] ?? ''));
+            $comprobante = trim((string) ($row['D'] ?? ''));
+            $montoTotal = (float) ($row['F'] ?? 0);
+            $departamento = mb_strtoupper(trim((string) ($row['G'] ?? '')), 'UTF-8');
+            $anioPago = (int) ($row['H'] ?? 0);
+            $mesesPago = trim((string) ($row['I'] ?? ''));
+            $montoAplicar = (float) ($row['J'] ?? 0);
+
+            if ($fecha === '' && $depositante === '' && $comprobante === '' && $departamento === '') {
+                continue;
+            }
+
+            $erroresFila = [];
+            $fechaNormalizada = $this->normalizarFechaExcel($fecha);
+            $hora = $this->normalizarHoraExcel($row['B'] ?? null);
+
+            if (! $fechaNormalizada) {
+                $erroresFila[] = 'fecha_banco invalida';
+            }
+
+            if ($montoTotal <= 0) {
+                $erroresFila[] = 'monto_total_ingreso debe ser mayor a 0';
+            }
+
+            if ($montoAplicar <= 0) {
+                $erroresFila[] = 'monto_a_aplicar debe ser mayor a 0';
+            }
+
+            if ($fechaNormalizada && $comprobante !== '' && $montoTotal > 0) {
+                $duplicado = DB::table('ingresos_bancarios')
+                    ->where('fecha', $fechaNormalizada)
+                    ->where('numero_comprobante', $comprobante)
+                    ->where('monto', $montoTotal)
+                    ->exists();
+
+                if ($duplicado) {
+                    $erroresFila[] = 'ya existe un ingreso con la misma fecha, comprobante y monto';
+                }
+            }
+
+            if (! in_array($departamento, $departamentosValidos, true)) {
+                $erroresFila[] = 'departamento no existe: '.$departamento;
+            }
+
+            $meses = $this->parseMesesImportacion($mesesPago);
+
+            if ($anioPago < 2024 || $anioPago > 2035) {
+                $erroresFila[] = 'anio_pago invalido';
+            }
+
+            if (empty($meses)) {
+                $erroresFila[] = 'meses_pago invalido';
+            }
+
+            foreach ($meses as $mes) {
+                $expensa = DB::table('expensas')
+                    ->where('departamento_nombre', $departamento)
+                    ->where('anio', $anioPago)
+                    ->where('mes', $mes)
+                    ->first();
+
+                if (! $expensa) {
+                    $erroresFila[] = 'no existe expensa '.$departamento.' '.$mes.'/'.$anioPago;
+                }
+            }
+
+            if ($erroresFila) {
+                $this->importacionErrores[] = 'Fila '.$index.': '.implode(', ', $erroresFila);
+                continue;
+            }
+
+            $key = $fechaNormalizada.'|'.$hora.'|'.$comprobante.'|'.$depositante.'|'.$montoTotal;
+
+            $ingresos[$key] = [
+                'fecha' => $fechaNormalizada,
+                'hora' => $hora,
+                'depositante' => mb_strtoupper($depositante, 'UTF-8'),
+                'numero_comprobante' => $comprobante,
+                'detalle' => mb_strtoupper(trim((string) ($row['E'] ?? $depositante)), 'UTF-8'),
+                'monto' => $montoTotal,
+                'observacion' => trim((string) ($row['K'] ?? '')),
+            ];
+
+            $aplicaciones[] = [
+                'key' => $key,
+                'departamento' => $departamento,
+                'anio' => $anioPago,
+                'meses' => $meses,
+                'monto' => $montoAplicar,
+                'observacion' => trim((string) ($row['K'] ?? '')),
+                'fila' => $index,
+            ];
+        }
+
+        foreach (collect($aplicaciones)->groupBy('key') as $key => $items) {
+            $totalAplicar = round($items->sum('monto'), 2);
+            $montoIngreso = round((float) ($ingresos[$key]['monto'] ?? 0), 2);
+
+            if ($totalAplicar > $montoIngreso + 0.01) {
+                $this->importacionErrores[] = 'Ingreso '.$key.': aplicaciones Bs '.$totalAplicar.' superan monto total Bs '.$montoIngreso;
+            }
+        }
+
+        if ($this->importacionErrores) {
+            return;
+        }
+
+        $this->importacionDatos = [
+            'ingresos' => array_values($ingresos),
+            'aplicaciones' => $aplicaciones,
+        ];
+
+        $this->importacionResumen = [
+            'ingresos' => count($ingresos),
+            'aplicaciones' => count($aplicaciones),
+            'monto_total' => round(collect($ingresos)->sum('monto'), 2),
+            'monto_aplicar' => round(collect($aplicaciones)->sum('monto'), 2),
+        ];
+
+        $this->importacionPreview = array_slice($aplicaciones, 0, 12);
+        $this->importacionValida = true;
+    }
+
+    public function confirmarImportacionIngresos()
+    {
+        if (! $this->importacionValida || empty($this->importacionDatos['ingresos'])) {
+            $this->emit('error', 'Primero valida el archivo.');
+
+            return;
+        }
+
+        DB::transaction(function () {
+            $ids = [];
+
+            foreach ($this->importacionDatos['ingresos'] as $ingreso) {
+                $fechaHora = $ingreso['fecha'].' '.($ingreso['hora'] ?: '00:00:00');
+                $key = $ingreso['fecha'].'|'.$ingreso['hora'].'|'.$ingreso['numero_comprobante'].'|'.$ingreso['depositante'].'|'.$ingreso['monto'];
+
+                $ids[$key] = DB::table('ingresos_bancarios')->insertGetId([
+                    'fecha' => $ingreso['fecha'],
+                    'hora' => $ingreso['hora'],
+                    'fecha_hora' => $fechaHora,
+                    'anio' => (int) date('Y', strtotime($ingreso['fecha'])),
+                    'mes' => (int) date('m', strtotime($ingreso['fecha'])),
+                    'depositante' => $ingreso['depositante'],
+                    'detalle' => $ingreso['detalle'],
+                    'numero_comprobante' => $ingreso['numero_comprobante'],
+                    'monto' => $ingreso['monto'],
+                    'tipo_ingreso' => 'Pendiente',
+                    'estado' => 'Pendiente',
+                    'monto_aplicado' => 0,
+                    'saldo_pendiente' => $ingreso['monto'],
+                    'origen' => 'EXCEL',
+                    'archivo_origen' => optional($this->archivoImportacion)->getClientOriginalName(),
+                    'observacion' => $ingreso['observacion'],
+                    'iduser' => Auth::id(),
+                    'nameuser' => Auth::user()->name ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            foreach ($this->importacionDatos['aplicaciones'] as $aplicacion) {
+                $this->aplicarImportacionAExpensas($ids[$aplicacion['key']], $aplicacion);
+                $this->ingresoId = $ids[$aplicacion['key']];
+                $this->actualizarTotalesIngresoEnBD();
+            }
+        });
+
+        $this->modalImportarIngresos = false;
+        $this->reset(['archivoImportacion', 'importacionErrores', 'importacionResumen', 'importacionPreview', 'importacionDatos', 'importacionValida']);
+        $this->emit('alert', 'Importacion completada correctamente.');
     }
 
     public function generarReporteDeudas()
@@ -1612,6 +1904,147 @@ class RegularizarIngresos extends Component
                 'observacion' => 'Aplicado desde sugerencia múltiple',
             ];
         }
+    }
+
+    protected function aplicarImportacionAExpensas($ingresoId, $aplicacion)
+    {
+        $montoPendiente = round((float) $aplicacion['monto'], 2);
+
+        foreach ($aplicacion['meses'] as $mes) {
+            if ($montoPendiente <= 0) {
+                break;
+            }
+
+            $expensa = DB::table('expensas')
+                ->where('departamento_nombre', $aplicacion['departamento'])
+                ->where('anio', $aplicacion['anio'])
+                ->where('mes', $mes)
+                ->first();
+
+            if (! $expensa) {
+                continue;
+            }
+
+            $saldoExpensa = round((float) ($expensa->saldo ?? 0), 2);
+            $montoAplicar = min($montoPendiente, $saldoExpensa > 0 ? $saldoExpensa : $montoPendiente);
+            $montoAplicar = round((float) $montoAplicar, 2);
+
+            if ($montoAplicar <= 0) {
+                continue;
+            }
+
+            $nuevoPagado = round((float) ($expensa->monto_pagado ?? 0) + $montoAplicar, 2);
+            $nuevoSaldo = round(max(0, (float) ($expensa->monto_expensa ?? 0) - $nuevoPagado), 2);
+            $estadoPago = $nuevoSaldo <= 0 ? 'Pagado' : 'Parcial';
+
+            IngresoBancarioAplicacion::create([
+                'ingreso_bancario_id' => $ingresoId,
+                'expensa_id' => $expensa->id,
+                'tipo_aplicacion' => 'Expensa',
+                'codigo_departamento' => null,
+                'departamento_nombre' => $expensa->departamento_nombre,
+                'nombre_departamento' => $expensa->departamento_nombre,
+                'fecha_inicio_pago' => $expensa->fecha_mes,
+                'anio_pago' => $expensa->anio,
+                'mes_pago' => $expensa->mes,
+                'monto' => $montoAplicar,
+                'pago_id' => null,
+                'estado' => 'Confirmado',
+                'estado_pago' => $estadoPago,
+                'fecha_aplicacion' => now(),
+                'observacion' => $aplicacion['observacion'] ?: 'Importado por Excel',
+                'iduser' => Auth::id(),
+                'nameuser' => Auth::user()->name ?? null,
+            ]);
+
+            DB::table('expensas')
+                ->where('id', $expensa->id)
+                ->update([
+                    'monto_pagado' => $nuevoPagado,
+                    'saldo' => $nuevoSaldo,
+                    'estado' => $estadoPago,
+                    'tipo_estado' => $estadoPago,
+                    'updated_at' => now(),
+                ]);
+
+            $montoPendiente = round($montoPendiente - $montoAplicar, 2);
+        }
+    }
+
+    protected function normalizarFechaExcel($value)
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_numeric($value)) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($value)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    protected function normalizarHoraExcel($value)
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i:s');
+        }
+
+        if (is_numeric($value) && (float) $value < 1) {
+            $seconds = (int) round((float) $value * 86400);
+
+            return gmdate('H:i:s', $seconds);
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return strlen($value) === 5 ? $value.':00' : $value;
+    }
+
+    protected function parseMesesImportacion($value)
+    {
+        $mesesTexto = [
+            'ENERO' => 1,
+            'FEBRERO' => 2,
+            'MARZO' => 3,
+            'ABRIL' => 4,
+            'MAYO' => 5,
+            'JUNIO' => 6,
+            'JULIO' => 7,
+            'AGOSTO' => 8,
+            'SEPTIEMBRE' => 9,
+            'SETIEMBRE' => 9,
+            'OCTUBRE' => 10,
+            'NOVIEMBRE' => 11,
+            'DICIEMBRE' => 12,
+        ];
+
+        return collect(preg_split('/[,;|]+/', mb_strtoupper((string) $value, 'UTF-8')))
+            ->map(fn ($mes) => trim($mes))
+            ->filter()
+            ->map(fn ($mes) => is_numeric($mes) ? (int) $mes : ($mesesTexto[$mes] ?? null))
+            ->filter(fn ($mes) => $mes >= 1 && $mes <= 12)
+            ->unique()
+            ->values()
+            ->toArray();
     }
 
     public function render()
