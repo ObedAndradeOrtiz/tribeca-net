@@ -201,7 +201,7 @@ class PanelResidente extends Component
             ->when($this->anioFiltro !== '', fn ($q) => $q->where('anio', (int) $this->anioFiltro))
             ->when($this->mesFiltro !== '', fn ($q) => $q->where('mes', (int) $this->mesFiltro))
             ->select('id', 'anio', 'mes', 'fecha_mes', 'monto_expensa', 'monto_pagado', 'saldo', 'estado', 'observacion')
-            ->orderByDesc('fecha_mes')
+            ->orderBy('fecha_mes')
             ->limit(12)
             ->get();
 
