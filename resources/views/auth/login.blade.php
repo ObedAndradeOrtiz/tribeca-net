@@ -6,10 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>TRIBECA SOHO | Login</title>
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
 
-    <!-- Bootstrap -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&family=Playfair+Display:wght@600&display=swap"
+        rel="stylesheet">
+
     <link rel="stylesheet" href="{{ asset('auth/vendor/bootstrap/css/bootstrap.min.css') }}">
 
     <style>
@@ -25,7 +26,6 @@
             height: 100vh;
         }
 
-        /* LEFT SIDE */
         .left-side {
             width: 60%;
             background: url('{{ asset('edificio.jpeg') }}') no-repeat center center/cover;
@@ -35,9 +35,12 @@
 
         .left-overlay {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(120deg, rgba(0,0,0,0.7), rgba(0,0,0,0.4));
+            inset: 0;
+            background: linear-gradient(
+                120deg,
+                rgba(0, 0, 0, 0.72),
+                rgba(0, 0, 0, 0.38)
+            );
         }
 
         .left-content {
@@ -68,7 +71,6 @@
             color: #bbb;
         }
 
-        /* RIGHT SIDE */
         .right-side {
             width: 40%;
             background: #ffffff;
@@ -80,7 +82,7 @@
         .login-box {
             width: 100%;
             max-width: 350px;
-            animation: fadeIn 1s ease;
+            animation: fadeIn 0.8s ease;
         }
 
         .login-title {
@@ -110,11 +112,36 @@
             color: white;
             font-weight: 600;
             transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        .btn-login:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.18);
+        }
+
+        .btn-login:disabled {
+            cursor: not-allowed;
+            opacity: 0.75;
+            transform: none;
+        }
+
+        .login-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         @keyframes fadeIn {
@@ -122,13 +149,13 @@
                 opacity: 0;
                 transform: translateX(30px);
             }
+
             to {
                 opacity: 1;
                 transform: translateX(0);
             }
         }
 
-        /* MOBILE */
         @media(max-width: 900px) {
             .left-side {
                 display: none;
@@ -136,6 +163,11 @@
 
             .right-side {
                 width: 100%;
+                padding: 25px;
+            }
+
+            .login-box {
+                max-width: 390px;
             }
         }
     </style>
@@ -145,41 +177,73 @@
 
     <div class="container-login">
 
-        <!-- IZQUIERDA -->
         <div class="left-side">
             <div class="left-overlay"></div>
 
             <div class="left-content">
-                <div class="brand-title">TRIBECA SOHO</div>
+                <div class="brand-title">
+                    TRIBECA SOHO
+                </div>
+
                 <div class="brand-subtitle">
                     Gestión inteligente de edificios
                 </div>
+
                 <div class="brand-footer">
                     Sistema desarrollado por <strong>DigitBol</strong>
                 </div>
             </div>
         </div>
 
-        <!-- DERECHA -->
         <div class="right-side">
 
             <div class="login-box">
 
-                <div class="login-title">Bienvenido</div>
-                <div class="login-subtitle">Accede a tu cuenta</div>
+                <div class="login-title">
+                    Bienvenido
+                </div>
 
-                <form method="POST" action="{{ route('login') }}">
+                <div class="login-subtitle">
+                    Ingresa tus credenciales para acceder al sistema
+                </div>
+
+                <form
+                    id="loginForm"
+                    method="POST"
+                    action="{{ route('login') }}"
+                >
                     @csrf
 
-                    <input type="email" name="email" class="form-control"
-                        placeholder="Correo electrónico" required>
+                    <input
+                        type="email"
+                        name="email"
+                        class="form-control"
+                        placeholder="Correo electrónico"
+                        value="{{ old('email') }}"
+                        required
+                        autocomplete="email"
+                        autofocus
+                    >
 
-                    <input type="password" name="password" class="form-control"
-                        placeholder="Contraseña" required>
+                    <input
+                        type="password"
+                        name="password"
+                        class="form-control"
+                        placeholder="Contraseña"
+                        required
+                        autocomplete="current-password"
+                    >
 
-                    <button type="submit" class="btn-login">
-                        Ingresar
+                    <button
+                        type="submit"
+                        id="btnLogin"
+                        class="btn-login"
+                    >
+                        <span id="loginText">
+                            Ingresar
+                        </span>
                     </button>
+
                 </form>
 
             </div>
@@ -187,6 +251,22 @@
         </div>
 
     </div>
+
+    <script>
+        document
+            .getElementById('loginForm')
+            .addEventListener('submit', function () {
+
+                const boton = document.getElementById('btnLogin');
+
+                boton.disabled = true;
+
+                boton.innerHTML = `
+                    <span class="login-spinner"></span>
+                    <span>Ingresando...</span>
+                `;
+            });
+    </script>
 
 </body>
 
