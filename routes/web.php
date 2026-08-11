@@ -35,11 +35,13 @@ use App\Http\Livewire\PlanillaEditar;
 use App\Http\Livewire\Rh;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\GastoController;
+use App\Http\Controllers\ResidentAuthController;
 use App\Http\Livewire\Operativos\FichaCliente;
 use App\Http\Livewire\PanelInformacion;
 use App\Http\Livewire\PanelMantenimientos;
 use App\Http\Livewire\PanelPago;
 use App\Http\Livewire\Reporte;
+use App\Http\Livewire\Residentes\AdminResidentes;
 use App\Http\Livewire\Vender;
 use App\Http\Livewire\PanelEstadoDepartamento;
 use Illuminate\Support\Facades\Artisan;
@@ -95,6 +97,11 @@ Route::post('/upload', [ImageController::class, 'upload'])->name('upload');
 Route::get('/', function () {
     return redirect('/login');
 });
+
+Route::get('/auth/google', [ResidentAuthController::class, 'redirectToGoogle'])->name('resident.google');
+Route::get('/auth/google/callback', [ResidentAuthController::class, 'handleGoogleCallback'])->name('resident.google.callback');
+Route::post('/login-residente-firebase', [ResidentAuthController::class, 'loginWithFirebase'])->name('resident.firebase.login');
+Route::post('/login-residente-codigo', [ResidentAuthController::class, 'loginWithCode'])->name('resident.code.login');
 /**ACTUALIZADOR */
 Route::get('/download/actualizador', function () {
     $filePath = public_path('actualizador.exe');
@@ -297,6 +304,7 @@ Route::middleware([
     'verified'
 ])->group(function () {
     Route::get('/usuarios', Usuarios::class);
+    Route::get('/residentes', AdminResidentes::class);
 });
 /**HBITACIONES */
 Route::middleware([

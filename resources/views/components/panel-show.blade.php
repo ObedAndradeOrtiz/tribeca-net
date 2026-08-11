@@ -12,6 +12,10 @@
         $permisos = $rolesderol->pluck('vista')->toArray();
     @endphp
 
+    @if (Auth::user()->rol === 'residente')
+        @livewire('residentes.panel-residente')
+    @else
+
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -350,6 +354,13 @@
                                                     <span class="menu-title">Personal interno</span>
                                                 </a>
                                             </div>
+                                            <div class="menu-item">
+                                                <a class="menu-link" href="/residentes">
+                                                    <span class="menu-bullet"><span
+                                                            class="bullet bullet-dot"></span></span>
+                                                    <span class="menu-title">Accesos residentes</span>
+                                                </a>
+                                            </div>
                                         @endif
                                     </div>
                                 </div>
@@ -585,4 +596,5 @@
         <script src="assets/js/custom/widgets.js"></script>
         <script src="assets/js/custom/apps/chat/chat.js"></script>
     </body>
+    @endif
 </div>

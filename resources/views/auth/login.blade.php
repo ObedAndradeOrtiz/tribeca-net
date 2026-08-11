@@ -144,6 +144,81 @@
             }
         }
 
+        .resident-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 18px 0;
+            color: #9aa4b2;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .resident-divider::before,
+        .resident-divider::after {
+            content: "";
+            height: 1px;
+            background: #e4e9f1;
+            flex: 1;
+        }
+
+        .btn-google {
+            width: 100%;
+            height: 45px;
+            border-radius: 8px;
+            border: 1px solid #dce3ee;
+            background: #ffffff;
+            color: #202b3c;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .btn-google:hover {
+            background: #f7f9fc;
+        }
+
+        .resident-code-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        .resident-code-form .form-control {
+            margin-bottom: 0;
+            text-transform: uppercase;
+        }
+
+        .btn-code {
+            width: 48px;
+            height: 45px;
+            border: none;
+            border-radius: 8px;
+            background: #172033;
+            color: #ffffff;
+            flex: 0 0 auto;
+        }
+
+        .resident-help {
+            margin-top: 8px;
+            color: #8a95a6;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .login-error {
+            background: #fff0f3;
+            border: 1px solid #ffc9d4;
+            color: #b42345;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -207,6 +282,12 @@
                     Ingresa tus credenciales para acceder al sistema
                 </div>
 
+                @if ($errors->any())
+                    <div class="login-error">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
                 <form
                     id="loginForm"
                     method="POST"
@@ -246,6 +327,36 @@
 
                 </form>
 
+                <div class="resident-divider">Residentes</div>
+
+                <button type="button" id="btnGoogleResident" class="btn-google">
+                    <span>G</span>
+                    Ingresar con Google
+                </button>
+
+                <form id="firebaseResidentForm" method="POST" action="{{ route('resident.firebase.login') }}">
+                    @csrf
+                    <input type="hidden" name="firebase_token" id="firebaseToken">
+                </form>
+
+                <form method="POST" action="{{ route('resident.code.login') }}" class="resident-code-form">
+                    @csrf
+                    <input
+                        type="text"
+                        name="resident_code"
+                        class="form-control"
+                        placeholder="Codigo de acceso"
+                        autocomplete="one-time-code"
+                    >
+                    <button type="submit" class="btn-code" title="Ingresar con codigo">
+                        &rarr;
+                    </button>
+                </form>
+
+                <div class="resident-help">
+                    Si eres propietario o residente, ingresa con Google o solicita un codigo al administrador.
+                </div>
+
             </div>
 
         </div>
@@ -265,6 +376,46 @@
                     <span class="login-spinner"></span>
                     <span>Ingresando...</span>
                 `;
+            });
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: @json(config('services.firebase.api_key')),
+            authDomain: @json(config('services.firebase.auth_domain')),
+            projectId: @json(config('services.firebase.project_id')),
+            storageBucket: @json(config('services.firebase.storage_bucket')),
+            messagingSenderId: @json(config('services.firebase.messaging_sender_id')),
+            appId: @json(config('services.firebase.app_id')),
+            measurementId: @json(config('services.firebase.measurement_id')),
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        document
+            .getElementById('btnGoogleResident')
+            .addEventListener('click', async function () {
+                const button = this;
+
+                button.disabled = true;
+                button.innerHTML = '<span class="login-spinner"></span><span>Conectando...</span>';
+
+                try {
+                    const result = await signInWithPopup(auth, provider);
+                    const token = await result.user.getIdToken();
+
+                    document.getElementById('firebaseToken').value = token;
+                    document.getElementById('firebaseResidentForm').submit();
+                } catch (error) {
+                    button.disabled = false;
+                    button.innerHTML = '<span>G</span> Ingresar con Google';
+                    alert('No se pudo iniciar sesion con Google.');
+                }
             });
     </script>
 

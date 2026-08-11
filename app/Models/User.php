@@ -25,9 +25,13 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'google_id',
+        'provider',
+        'rol',
         'password',
         'sueldo',
         'ci',
+        'telefono',
         'edad',
         'estado',
         'bono',
@@ -38,6 +42,9 @@ class User extends Authenticatable
         'sucursal',
         'idsucursal',
         'sesionsucursal',
+        'resident_profile_completed',
+        'ocupacion',
+        'path',
 
     ];
 
