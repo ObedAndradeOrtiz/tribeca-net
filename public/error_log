@@ -1,0 +1,2 @@
+[29-Jun-2026 17:37:00 America/La_Paz] PHP Fatal error:  Cannot use Illuminate\Support\Facades\Route as Route because the name is already in use in /home/guislain/tribeca.guislaincorp.com/routes/web.php on line 45
+[10-Aug-2026 16:12:16 America/La_Paz] PHP Fatal error:  Allowed memory size of 134217728 bytes exhausted (tried to allocate 20480 bytes) in /home/guislain/tribeca.guislaincorp.com/vendor/dompdf/dompdf/src/Css/Style.php on line 1845
