@@ -16,6 +16,10 @@ class PanelResidente extends Component
 
     public $mensaje = '';
 
+    public $tabActiva = 'autorizados';
+
+    public $busquedaDepartamento = '';
+
     public function mount()
     {
         abort_unless(Auth::check() && Auth::user()->rol === 'residente', 403);
@@ -71,6 +75,8 @@ class PanelResidente extends Component
         }
 
         $this->mensaje = 'Solicitud enviada. El administrador debe autorizarla.';
+        $this->departamentosSolicitados = $this->solicitudesActuales();
+        $this->tabActiva = 'autorizados';
     }
 
     public function solicitudesActuales()
@@ -89,8 +95,25 @@ class PanelResidente extends Component
                 $q->whereNull('estado')
                     ->orWhere('estado', 'Activo');
             })
+            ->when(trim($this->busquedaDepartamento) !== '', function ($q) {
+                $busqueda = '%'.trim($this->busquedaDepartamento).'%';
+
+                $q->where(function ($subquery) use ($busqueda) {
+                    $subquery->where('nombre', 'like', $busqueda)
+                        ->orWhere('TIPO', 'like', $busqueda);
+                });
+            })
             ->select('id', 'nombre', 'costo', 'TIPO')
             ->orderBy('nombre')
+            ->get();
+    }
+
+    public function getAccesosAprobadosProperty()
+    {
+        return DB::table('resident_department_access')
+            ->where('user_id', Auth::id())
+            ->where('status', 'Aprobado')
+            ->orderBy('departamento_nombre')
             ->get();
     }
 
@@ -100,6 +123,13 @@ class PanelResidente extends Component
             ->where('user_id', Auth::id())
             ->orderBy('departamento_nombre')
             ->get();
+    }
+
+    public function estadoDepartamento($tratamientoId)
+    {
+        return $this->accesos
+            ->firstWhere('tratamiento_id', (int) $tratamientoId)
+            ->status ?? null;
     }
 
     public function resumenDepartamento($departamentoNombre)

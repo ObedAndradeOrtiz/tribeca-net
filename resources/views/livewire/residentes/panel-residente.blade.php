@@ -48,50 +48,34 @@
         <div class="resident-section-head">
             <div>
                 <span>Autorizacion</span>
-                <h2>Departamentos solicitados</h2>
+                <h2>Departamentos</h2>
             </div>
-            <button type="button" class="resident-primary-btn" wire:click="solicitarAccesos">
+        </div>
+
+        <div class="resident-tabs">
+            <button type="button" class="{{ $tabActiva === 'autorizados' ? 'active' : '' }}" wire:click="$set('tabActiva', 'autorizados')">
+                <i class="bi bi-shield-check"></i>
+                Autorizados
+            </button>
+            <button type="button" class="{{ $tabActiva === 'solicitar' ? 'active' : '' }}" wire:click="$set('tabActiva', 'solicitar')">
                 <i class="bi bi-send"></i>
-                Solicitar
+                Solicitar autorizacion
             </button>
         </div>
 
-        <div class="resident-dept-picker">
-            @foreach ($this->departamentos as $departamento)
-                <label class="resident-check-card">
-                    <input type="checkbox" wire:model.defer="departamentosSolicitados" value="{{ $departamento->id }}">
-                    <span>
-                        <strong>{{ $departamento->nombre }}</strong>
-                        <small>{{ $departamento->TIPO ?: 'Departamento' }} · Bs {{ number_format((float) $departamento->costo, 2) }}</small>
-                    </span>
-                </label>
-            @endforeach
-        </div>
-    </section>
+        @if ($tabActiva === 'autorizados')
+            <div class="resident-access-list">
+                @forelse ($this->accesosAprobados as $acceso)
+                    @php($resumen = $this->resumenDepartamento($acceso->departamento_nombre))
 
-    <section class="resident-section">
-        <div class="resident-section-head">
-            <div>
-                <span>Consulta</span>
-                <h2>Accesos aprobados</h2>
-            </div>
-        </div>
-
-        <div class="resident-access-list">
-            @forelse ($this->accesos as $acceso)
-                @php($resumen = $acceso->status === 'Aprobado' ? $this->resumenDepartamento($acceso->departamento_nombre) : null)
-
-                <article class="resident-dept-card">
-                    <div class="resident-dept-head">
-                        <div>
-                            <h3>{{ $acceso->departamento_nombre }}</h3>
-                            <span class="{{ $acceso->status === 'Aprobado' ? 'ok' : ($acceso->status === 'Solicitado' ? 'pending' : 'off') }}">
-                                {{ $acceso->status }}
-                            </span>
+                    <article class="resident-dept-card">
+                        <div class="resident-dept-head">
+                            <div>
+                                <h3>{{ $acceso->departamento_nombre }}</h3>
+                                <span class="ok">Aprobado</span>
+                            </div>
                         </div>
-                    </div>
 
-                    @if ($resumen)
                         <div class="resident-money-grid">
                             <div>
                                 <span>Expensas</span>
@@ -114,8 +98,8 @@
                                 <div class="resident-payment-row">
                                     <div>
                                         <strong>{{ $pago->depositante ?: 'Ingreso bancario' }}</strong>
-                                        <span>{{ \Carbon\Carbon::parse($pago->fecha)->format('d/m/Y') }} · Comp. {{ $pago->numero_comprobante ?: 'Sin comprobante' }}</span>
-                                        <small>{{ $pago->mes_pago }}/{{ $pago->anio_pago }} {{ $pago->estado_pago ? '· '.$pago->estado_pago : '' }}</small>
+                                        <span>{{ \Carbon\Carbon::parse($pago->fecha)->format('d/m/Y') }} - Comp. {{ $pago->numero_comprobante ?: 'Sin comprobante' }}</span>
+                                        <small>{{ $pago->mes_pago }}/{{ $pago->anio_pago }} {{ $pago->estado_pago ? '- '.$pago->estado_pago : '' }}</small>
                                     </div>
                                     <b>Bs {{ number_format((float) $pago->monto, 2) }}</b>
                                 </div>
@@ -123,18 +107,55 @@
                                 <div class="resident-empty">Todavia no hay pagos aplicados para mostrar.</div>
                             @endforelse
                         </div>
-                    @else
-                        <div class="resident-empty">
-                            El administrador debe aprobar este acceso antes de mostrar importes.
-                        </div>
-                    @endif
-                </article>
-            @empty
-                <div class="resident-empty">
-                    Selecciona tus departamentos y solicita autorizacion.
-                </div>
-            @endforelse
-        </div>
+                    </article>
+                @empty
+                    <div class="resident-empty">
+                        Aun no tienes departamentos autorizados.
+                    </div>
+                @endforelse
+            </div>
+        @else
+            <div class="resident-request-tools">
+                <label class="resident-search">
+                    <i class="bi bi-search"></i>
+                    <input type="search" wire:model.debounce.350ms="busquedaDepartamento" placeholder="Buscar departamento">
+                </label>
+
+                <button type="button" class="resident-primary-btn" wire:click="solicitarAccesos">
+                    <i class="bi bi-send"></i>
+                    Solicitar
+                </button>
+            </div>
+
+            <div class="resident-dept-picker">
+                @forelse ($this->departamentos as $departamento)
+                    @php($estado = $this->estadoDepartamento($departamento->id))
+
+                    <label class="resident-check-card {{ $estado ? 'disabled' : '' }}">
+                        <input
+                            type="checkbox"
+                            wire:model.defer="departamentosSolicitados"
+                            value="{{ $departamento->id }}"
+                            @disabled($estado)
+                        >
+                        <span>
+                            <strong>{{ $departamento->nombre }}</strong>
+                            <small>{{ $departamento->TIPO ?: 'Departamento' }}</small>
+                        </span>
+
+                        @if ($estado)
+                            <em class="{{ $estado === 'Aprobado' ? 'ok' : ($estado === 'Solicitado' ? 'pending' : 'off') }}">
+                                {{ $estado }}
+                            </em>
+                        @endif
+                    </label>
+                @empty
+                    <div class="resident-empty">
+                        No encontramos departamentos con esa busqueda.
+                    </div>
+                @endforelse
+            </div>
+        @endif
     </section>
 
     <style>
@@ -249,6 +270,64 @@
             font-weight: 800;
         }
 
+        .resident-tabs {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 14px;
+            padding: 4px;
+            border: 1px solid #e5ebf3;
+            border-radius: 8px;
+            background: #f7f9fc;
+        }
+
+        .resident-tabs button {
+            min-height: 42px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #607086;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .resident-tabs button.active {
+            background: #1266f1;
+            color: #ffffff;
+            box-shadow: 0 8px 20px rgba(18, 102, 241, .18);
+        }
+
+        .resident-request-tools {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .resident-search {
+            min-height: 42px;
+            border: 1px solid #d9e1ec;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 0 12px;
+            color: #607086;
+            background: #ffffff;
+        }
+
+        .resident-search input {
+            width: 100%;
+            border: 0;
+            outline: 0;
+            color: #172033;
+            font-weight: 800;
+        }
+
         .resident-dept-picker,
         .resident-access-list {
             display: grid;
@@ -260,15 +339,25 @@
             display: flex;
             gap: 11px;
             align-items: center;
+            justify-content: space-between;
             border: 1px solid #e5ebf3;
             border-radius: 8px;
             padding: 12px;
+        }
+
+        .resident-check-card.disabled {
+            background: #f8fafc;
         }
 
         .resident-check-card input {
             width: 20px;
             height: 20px;
             flex: 0 0 auto;
+        }
+
+        .resident-check-card > span {
+            min-width: 0;
+            flex: 1 1 auto;
         }
 
         .resident-check-card strong,
@@ -289,6 +378,17 @@
             margin-top: 2px;
         }
 
+        .resident-check-card em,
+        .resident-dept-head span {
+            display: inline-flex;
+            border-radius: 999px;
+            padding: 6px 9px;
+            font-size: 11px;
+            font-style: normal;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
         .resident-dept-card {
             border: 1px solid #e5ebf3;
             border-radius: 8px;
@@ -299,25 +399,20 @@
             font-size: 18px;
         }
 
-        .resident-dept-head span {
-            display: inline-flex;
-            border-radius: 999px;
-            padding: 6px 9px;
-            font-size: 11px;
-            font-weight: 900;
-        }
-
-        .resident-dept-head .ok {
+        .resident-dept-head .ok,
+        .resident-check-card .ok {
             background: #eafaf2;
             color: #0f7c55;
         }
 
-        .resident-dept-head .pending {
+        .resident-dept-head .pending,
+        .resident-check-card .pending {
             background: #fff7df;
             color: #956400;
         }
 
-        .resident-dept-head .off {
+        .resident-dept-head .off,
+        .resident-check-card .off {
             background: #fff0f3;
             color: #b42345;
         }
@@ -380,7 +475,9 @@
             }
 
             .resident-form-grid,
-            .resident-money-grid {
+            .resident-money-grid,
+            .resident-tabs,
+            .resident-request-tools {
                 grid-template-columns: 1fr;
             }
 
