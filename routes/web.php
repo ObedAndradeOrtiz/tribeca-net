@@ -38,6 +38,7 @@ use App\Http\Controllers\GastoController;
 use App\Http\Controllers\ResidentAuthController;
 use App\Http\Livewire\Operativos\FichaCliente;
 use App\Http\Livewire\PanelInformacion;
+use App\Http\Livewire\PanelResidentes;
 use App\Http\Livewire\PanelMantenimientos;
 use App\Http\Livewire\PanelPago;
 use App\Http\Livewire\Reporte;
@@ -304,7 +305,7 @@ Route::middleware([
     'verified'
 ])->group(function () {
     Route::get('/usuarios', Usuarios::class);
-    Route::get('/residentes', AdminResidentes::class);
+    Route::get('/residentes', PanelResidentes::class);
 });
 /**HBITACIONES */
 Route::middleware([

@@ -563,6 +563,9 @@
                                         @case(35)
                                             <livewire:tesoreria.informe-ingresos-egresos lazy />
                                         @break
+                                          @case(36)
+                                            <livewire:residentes.admin-residentes lazy />
+                                        @break
 
                                         @default
                                             <livewire:panel-inicio.ver-panel lazy />
