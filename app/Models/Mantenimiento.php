@@ -14,7 +14,10 @@ class Mantenimiento extends Model
         'monto',
         'descripcion',
         'comprobante',
-        'user_id'
+        'user_id',
+        'estado',
+        'fecha_baja',
+        'motivo_baja',
     ];
 
     public function tipo()

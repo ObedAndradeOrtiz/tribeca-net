@@ -11,6 +11,7 @@ use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class RegularizarIngresos extends Component
@@ -131,6 +132,7 @@ class RegularizarIngresos extends Component
             'depositante',
             'numero_comprobante',
             'detalle',
+            'tipo_aplicacion',
             'monto_total_ingreso',
             'departamento',
             'anio_pago',
@@ -141,13 +143,27 @@ class RegularizarIngresos extends Component
 
         $sheet->fromArray($headers, null, 'A1');
         $sheet->fromArray([
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 2000, 'DPTO 10A', 2026, '12', 500, 'Diciembre 2026'],
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 2000, 'DPTO 10A', 2027, '1', 500, 'Enero 2027'],
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 2000, 'DPTO 10B', 2026, '11,12', 1000, 'Se aplica en orden de meses'],
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 'Expensa', 2500, 'DPTO 10A', 2026, '12', 500, 'Diciembre 2026'],
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 'Expensa', 2500, 'DPTO 10A', 2027, '1', 500, 'Enero 2027'],
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 'Expensa', 2500, 'DPTO 10B', 2026, '11,12', 1000, 'Se aplica en orden de meses'],
+            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Alquiler salon', 'Alquiler salon', 2500, '', '', '', 500, 'Alquiler de salon'],
         ], null, 'A2');
 
-        foreach (range('A', 'K') as $column) {
+        foreach (range('A', 'L') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
+        }
+
+        $validation = $sheet->getCell('F2')->getDataValidation();
+        $validation->setType(DataValidation::TYPE_LIST);
+        $validation->setErrorStyle(DataValidation::STYLE_STOP);
+        $validation->setAllowBlank(false);
+        $validation->setShowInputMessage(true);
+        $validation->setShowErrorMessage(true);
+        $validation->setShowDropDown(true);
+        $validation->setFormula1('"Expensa,Gestion anterior,Alquiler salon,Otro ingreso,No identificado"');
+
+        for ($row = 2; $row <= 300; $row++) {
+            $sheet->getCell('F'.$row)->setDataValidation(clone $validation);
         }
 
         $help = $spreadsheet->createSheet();
@@ -167,6 +183,19 @@ class RegularizarIngresos extends Component
 
         $help->getColumnDimension('A')->setAutoSize(true);
         $help->getColumnDimension('B')->setAutoSize(true);
+
+        $tipos = $spreadsheet->createSheet();
+        $tipos->setTitle('Tipos ingreso');
+        $tipos->fromArray(['tipo_aplicacion', 'uso'], null, 'A1');
+        $tipos->fromArray([
+            ['Expensa', 'Aplica el pago a una o varias expensas de departamentos. Requiere departamento, anio_pago y meses_pago.'],
+            ['Gestion anterior', 'Registra un ingreso aplicado a gestion anterior. No requiere departamento ni meses.'],
+            ['Alquiler salon', 'Registra alquiler de salon u otros espacios comunes. No requiere departamento ni meses.'],
+            ['Otro ingreso', 'Registra ingresos varios no asociados a expensas. No requiere departamento ni meses.'],
+            ['No identificado', 'Marca el dinero como aplicado pero aun sin clasificacion final. No requiere departamento ni meses.'],
+        ], null, 'A2');
+        $tipos->getColumnDimension('A')->setAutoSize(true);
+        $tipos->getColumnDimension('B')->setAutoSize(true);
 
         $writer = new Xlsx($spreadsheet);
 
@@ -220,11 +249,25 @@ class RegularizarIngresos extends Component
             $fecha = trim((string) ($row['A'] ?? ''));
             $depositante = trim((string) ($row['C'] ?? ''));
             $comprobante = trim((string) ($row['D'] ?? ''));
-            $montoTotal = (float) ($row['F'] ?? 0);
-            $departamento = mb_strtoupper(trim((string) ($row['G'] ?? '')), 'UTF-8');
-            $anioPago = (int) ($row['H'] ?? 0);
-            $mesesPago = trim((string) ($row['I'] ?? ''));
-            $montoAplicar = (float) ($row['J'] ?? 0);
+            $tipoAplicacion = $this->normalizarTipoAplicacionExcel($row['F'] ?? '');
+            $usaPlantillaAnterior = ! $tipoAplicacion && is_numeric($row['F'] ?? null);
+
+            if ($usaPlantillaAnterior) {
+                $tipoAplicacion = 'Expensa';
+                $montoTotal = (float) ($row['F'] ?? 0);
+                $departamento = mb_strtoupper(trim((string) ($row['G'] ?? '')), 'UTF-8');
+                $anioPago = (int) ($row['H'] ?? 0);
+                $mesesPago = trim((string) ($row['I'] ?? ''));
+                $montoAplicar = (float) ($row['J'] ?? 0);
+                $observacion = trim((string) ($row['K'] ?? ''));
+            } else {
+                $montoTotal = (float) ($row['G'] ?? 0);
+                $departamento = mb_strtoupper(trim((string) ($row['H'] ?? '')), 'UTF-8');
+                $anioPago = (int) ($row['I'] ?? 0);
+                $mesesPago = trim((string) ($row['J'] ?? ''));
+                $montoAplicar = (float) ($row['K'] ?? 0);
+                $observacion = trim((string) ($row['L'] ?? ''));
+            }
 
             if ($fecha === '' && $depositante === '' && $comprobante === '' && $departamento === '') {
                 continue;
@@ -246,6 +289,10 @@ class RegularizarIngresos extends Component
                 $erroresFila[] = 'monto_a_aplicar debe ser mayor a 0';
             }
 
+            if (! $tipoAplicacion) {
+                $erroresFila[] = 'tipo_aplicacion invalido';
+            }
+
             if ($fechaNormalizada && $comprobante !== '' && $montoTotal > 0) {
                 $duplicado = DB::table('ingresos_bancarios')
                     ->where('fecha', $fechaNormalizada)
@@ -258,29 +305,31 @@ class RegularizarIngresos extends Component
                 }
             }
 
-            if (! in_array($departamento, $departamentosValidos, true)) {
-                $erroresFila[] = 'departamento no existe: '.$departamento;
-            }
-
             $meses = $this->parseMesesImportacion($mesesPago);
 
-            if ($anioPago < 2024 || $anioPago > 2035) {
-                $erroresFila[] = 'anio_pago invalido';
-            }
+            if ($tipoAplicacion === 'Expensa') {
+                if (! in_array($departamento, $departamentosValidos, true)) {
+                    $erroresFila[] = 'departamento no existe: '.$departamento;
+                }
 
-            if (empty($meses)) {
-                $erroresFila[] = 'meses_pago invalido';
-            }
+                if ($anioPago < 2024 || $anioPago > 2035) {
+                    $erroresFila[] = 'anio_pago invalido';
+                }
 
-            foreach ($meses as $mes) {
-                $expensa = DB::table('expensas')
-                    ->where('departamento_nombre', $departamento)
-                    ->where('anio', $anioPago)
-                    ->where('mes', $mes)
-                    ->first();
+                if (empty($meses)) {
+                    $erroresFila[] = 'meses_pago invalido';
+                }
 
-                if (! $expensa) {
-                    $erroresFila[] = 'no existe expensa '.$departamento.' '.$mes.'/'.$anioPago;
+                foreach ($meses as $mes) {
+                    $expensa = DB::table('expensas')
+                        ->where('departamento_nombre', $departamento)
+                        ->where('anio', $anioPago)
+                        ->where('mes', $mes)
+                        ->first();
+
+                    if (! $expensa) {
+                        $erroresFila[] = 'no existe expensa '.$departamento.' '.$mes.'/'.$anioPago;
+                    }
                 }
             }
 
@@ -298,16 +347,22 @@ class RegularizarIngresos extends Component
                 'numero_comprobante' => $comprobante,
                 'detalle' => mb_strtoupper(trim((string) ($row['E'] ?? $depositante)), 'UTF-8'),
                 'monto' => $montoTotal,
-                'observacion' => trim((string) ($row['K'] ?? '')),
+                'tipo_ingreso' => $tipoAplicacion,
+                'observacion' => $observacion,
             ];
+
+            if (($ingresos[$key]['tipo_ingreso'] ?? $tipoAplicacion) !== $tipoAplicacion) {
+                $ingresos[$key]['tipo_ingreso'] = 'Mixto';
+            }
 
             $aplicaciones[] = [
                 'key' => $key,
+                'tipo_aplicacion' => $tipoAplicacion,
                 'departamento' => $departamento,
                 'anio' => $anioPago,
                 'meses' => $meses,
                 'monto' => $montoAplicar,
-                'observacion' => trim((string) ($row['K'] ?? '')),
+                'observacion' => $observacion,
                 'fila' => $index,
             ];
         }
@@ -366,7 +421,7 @@ class RegularizarIngresos extends Component
                     'detalle' => $ingreso['detalle'],
                     'numero_comprobante' => $ingreso['numero_comprobante'],
                     'monto' => $ingreso['monto'],
-                    'tipo_ingreso' => 'Pendiente',
+                    'tipo_ingreso' => $ingreso['tipo_ingreso'] ?? 'Pendiente',
                     'estado' => 'Pendiente',
                     'monto_aplicado' => 0,
                     'saldo_pendiente' => $ingreso['monto'],
@@ -381,7 +436,7 @@ class RegularizarIngresos extends Component
             }
 
             foreach ($this->importacionDatos['aplicaciones'] as $aplicacion) {
-                $this->aplicarImportacionAExpensas($ids[$aplicacion['key']], $aplicacion);
+                $this->aplicarImportacionDesdeExcel($ids[$aplicacion['key']], $aplicacion);
                 $this->ingresoId = $ids[$aplicacion['key']];
                 $this->actualizarTotalesIngresoEnBD();
             }
@@ -1906,6 +1961,34 @@ class RegularizarIngresos extends Component
         }
     }
 
+    protected function aplicarImportacionDesdeExcel($ingresoId, $aplicacion)
+    {
+        if (($aplicacion['tipo_aplicacion'] ?? 'Expensa') === 'Expensa') {
+            $this->aplicarImportacionAExpensas($ingresoId, $aplicacion);
+
+            return;
+        }
+
+        IngresoBancarioAplicacion::create([
+            'ingreso_bancario_id' => $ingresoId,
+            'expensa_id' => null,
+            'tipo_aplicacion' => $aplicacion['tipo_aplicacion'],
+            'codigo_departamento' => null,
+            'departamento_nombre' => null,
+            'fecha_inicio_pago' => null,
+            'anio_pago' => null,
+            'mes_pago' => null,
+            'monto' => round((float) $aplicacion['monto'], 2),
+            'pago_id' => null,
+            'estado' => 'Confirmado',
+            'estado_pago' => $aplicacion['tipo_aplicacion'],
+            'fecha_aplicacion' => now(),
+            'observacion' => $aplicacion['observacion'] ?: 'Importado por Excel',
+            'iduser' => Auth::id(),
+            'nameuser' => Auth::user()->name ?? null,
+        ]);
+    }
+
     protected function aplicarImportacionAExpensas($ingresoId, $aplicacion)
     {
         $montoPendiente = round((float) $aplicacion['monto'], 2);
@@ -1969,6 +2052,27 @@ class RegularizarIngresos extends Component
 
             $montoPendiente = round($montoPendiente - $montoAplicar, 2);
         }
+    }
+
+    protected function normalizarTipoAplicacionExcel($value)
+    {
+        $value = mb_strtoupper(trim((string) $value), 'UTF-8');
+        $value = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú'], ['A', 'E', 'I', 'O', 'U'], $value);
+
+        $tipos = [
+            'EXPENSA' => 'Expensa',
+            'EXPENSAS' => 'Expensa',
+            'PAGO EXPENSA' => 'Expensa',
+            'PAGO EXPENSAS' => 'Expensa',
+            'GESTION ANTERIOR' => 'Gestion anterior',
+            'ALQUILER SALON' => 'Alquiler salon',
+            'ALQUILER DE SALON' => 'Alquiler salon',
+            'OTRO INGRESO' => 'Otro ingreso',
+            'OTROS INGRESOS' => 'Otro ingreso',
+            'NO IDENTIFICADO' => 'No identificado',
+        ];
+
+        return $tipos[$value] ?? null;
     }
 
     protected function normalizarFechaExcel($value)

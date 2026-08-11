@@ -282,34 +282,42 @@ $hoy = Carbon::today();
 
 $this->notificaciones = \App\Models\Mantenimiento::with('tipo', 'proveedor')
     ->whereNotNull('fecha_siguiente')
-    ->whereDate('fecha_siguiente', '<=', $hoy->copy()->addDays(15))
+    ->where(function ($q) {
+        $q->whereNull('estado')
+            ->orWhere('estado', 'Activo');
+    })
+    ->whereDate('fecha_siguiente', '<=', $hoy->copy()->addDays(3))
     ->orderBy('fecha_siguiente')
     ->limit(12)
     ->get()
     ->map(function ($m) use ($hoy) {
+        $fecha = Carbon::parse($m->fecha_siguiente);
+        $dias = $hoy->diffInDays($fecha, false);
 
-    $fecha = Carbon::parse($m->fecha_siguiente);
-    $dias = $hoy->diffInDays($fecha, false); // puede ser negativo
+        if ($dias < 0) {
+            $m->color = 'danger';
+            $m->mensaje = 'Mantenimiento vencido';
+        } elseif ($dias === 0) {
+            $m->color = 'danger';
+            $m->mensaje = 'Mantenimiento para hoy';
+        } elseif ($dias === 1) {
+            $m->color = 'danger';
+            $m->mensaje = 'Falta 1 dia';
+        } elseif ($dias === 2) {
+            $m->color = 'warning';
+            $m->mensaje = 'Faltan 2 dias';
+        } elseif ($dias === 3) {
+            $m->color = 'success';
+            $m->mensaje = 'Faltan 3 dias';
+        } else {
+            $m->color = 'secondary';
+            $m->mensaje = 'Sin urgencia';
+        }
 
-    // 🔥 COLOR + MENSAJE
-    if ($dias <= 2) {
-        $m->color = 'danger'; // rojo
-        $m->mensaje = '⚠️ URGENTE - mantenimiento inmediato';
-    } elseif ($dias <= 5) {
-        $m->color = 'warning'; // amarillo
-        $m->mensaje = '⏳ Próximo mantenimiento';
-    } elseif ($dias <= 15) {
-        $m->color = 'success'; // verde
-        $m->mensaje = '✔️ Programado';
-    } else {
-        $m->color = 'secondary';
-        $m->mensaje = 'Sin urgencia';
-    }
+        $m->dias_restantes = $dias;
 
-    $m->dias_restantes = $dias;
-
-    return $m;
-});
+        return $m;
+    });
 
         return view('livewire.tesoreria.micaja');
     }

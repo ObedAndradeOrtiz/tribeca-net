@@ -14,7 +14,11 @@
         $totalDeptos = Tratamiento::count();
         $totalUsuarios = User::count();
 
-        $mantenimientosPendientes = Mantenimiento::whereDate('fecha_siguiente','<=',now())->count();
+        $mantenimientosPendientes = Mantenimiento::where(function ($q) {
+                $q->whereNull('estado')->orWhere('estado', 'Activo');
+            })
+            ->whereDate('fecha_siguiente','<=',now())
+            ->count();
 
         $ultimosPagos = Pagos::latest()->take(5)->get();
     @endphp

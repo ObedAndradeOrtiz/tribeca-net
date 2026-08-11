@@ -9,20 +9,20 @@
 
     <div class="maintenance-kpis">
         <div>
-            <span>Total</span>
-            <strong>{{ $mantenimientos->count() }}</strong>
+            <span>Activos</span>
+            <strong>{{ $mantenimientos->filter(fn ($m) => ($m->estado ?? 'Activo') === 'Activo')->count() }}</strong>
         </div>
         <div>
             <span>Vencidos</span>
-            <strong>{{ $mantenimientos->filter(fn ($m) => $m->fecha_siguiente && \Carbon\Carbon::parse($m->fecha_siguiente)->isPast())->count() }}</strong>
+            <strong>{{ $mantenimientos->filter(fn ($m) => ($m->estado ?? 'Activo') === 'Activo' && $m->fecha_siguiente && \Carbon\Carbon::parse($m->fecha_siguiente)->isPast())->count() }}</strong>
         </div>
         <div>
-            <span>Tipos</span>
-            <strong>{{ $tipos->count() }}</strong>
+            <span>Proximos 3 dias</span>
+            <strong>{{ $mantenimientos->filter(fn ($m) => ($m->estado ?? 'Activo') === 'Activo' && $m->fecha_siguiente && \Carbon\Carbon::parse($m->fecha_siguiente)->betweenIncluded(now()->startOfDay(), now()->copy()->addDays(3)->endOfDay()))->count() }}</strong>
         </div>
         <div>
-            <span>Proveedores</span>
-            <strong>{{ $proveedores->count() }}</strong>
+            <span>En baja</span>
+            <strong>{{ $mantenimientos->filter(fn ($m) => ($m->estado ?? 'Activo') === 'Baja')->count() }}</strong>
         </div>
     </div>
 
@@ -114,16 +114,29 @@
                     @forelse ($mantenimientos as $m)
                         @php
                             $siguiente = $m->fecha_siguiente ? \Carbon\Carbon::parse($m->fecha_siguiente) : null;
-                            $estado = ! $siguiente ? 'incompleto' : ($siguiente->isPast() ? 'vencido' : ($siguiente->isToday() ? 'hoy' : 'programado'));
-                            $estadoTexto = ['incompleto' => 'Incompleto', 'vencido' => 'Vencido', 'hoy' => 'Hoy', 'programado' => 'Programado'][$estado];
+                            $activo = ($m->estado ?? 'Activo') === 'Activo';
+                            $dias = $siguiente ? now()->startOfDay()->diffInDays($siguiente->copy()->startOfDay(), false) : null;
+                            $estado = ! $activo ? 'baja' : (! $siguiente ? 'incompleto' : ($dias < 0 ? 'vencido' : ($dias === 0 ? 'hoy' : ($dias <= 3 ? 'proximo' : 'programado'))));
+                            $estadoTexto = [
+                                'baja' => 'En baja',
+                                'incompleto' => 'Incompleto',
+                                'vencido' => 'Vencido',
+                                'hoy' => 'Hoy',
+                                'proximo' => 'Faltan '.$dias.' dias',
+                                'programado' => 'Programado',
+                            ][$estado];
                         @endphp
 
                         <article class="maintenance-row {{ $estado }}">
                             <div>
                                 <strong>{{ optional($m->tipo)->nombre ?: 'Sin tipo' }}</strong>
                                 <span>{{ optional($m->proveedor)->nombre ?: 'Sin proveedor' }}</span>
+                                <em class="{{ $activo ? 'pill-active' : 'pill-down' }}">{{ $m->estado ?? 'Activo' }}</em>
                                 @if ($m->descripcion)
                                     <small>{{ $m->descripcion }}</small>
+                                @endif
+                                @if (! $activo && $m->motivo_baja)
+                                    <small>Baja: {{ $m->motivo_baja }}</small>
                                 @endif
                             </div>
 
@@ -152,6 +165,15 @@
                                 <button type="button" wire:click="abrirEditar({{ $m->id }})" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </button>
+                                @if ($activo)
+                                    <button type="button" class="warning" wire:click="confirmarBaja({{ $m->id }})" title="Dar de baja">
+                                        <i class="bi bi-pause-circle"></i>
+                                    </button>
+                                @else
+                                    <button type="button" class="success" wire:click="reactivarMantenimiento({{ $m->id }})" title="Reactivar">
+                                        <i class="bi bi-play-circle"></i>
+                                    </button>
+                                @endif
                                 <button type="button" class="danger" wire:click="confirmarEliminar({{ $m->id }})" title="Eliminar">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -282,6 +304,26 @@
                 <div class="maintenance-modal-actions">
                     <button type="button" class="secondary" wire:click="cerrarModal">Cancelar</button>
                     <button type="button" class="danger" wire:click="eliminarMantenimiento">Eliminar</button>
+                </div>
+            </section>
+        </div>
+    @endif
+
+    @if ($bajaId)
+        <div class="maintenance-modal-backdrop">
+            <section class="maintenance-modal small">
+                <div class="maintenance-modal-head">
+                    <h4>Dar de baja mantenimiento</h4>
+                    <button type="button" wire:click="cerrarModal"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <p>El mantenimiento quedara fuera de los recordatorios, pero no se eliminara del historial.</p>
+                <label class="maintenance-modal-label">
+                    Motivo opcional
+                    <textarea wire:model.defer="motivoBaja" rows="3" placeholder="Ej. Equipo retirado, servicio cancelado"></textarea>
+                </label>
+                <div class="maintenance-modal-actions">
+                    <button type="button" class="secondary" wire:click="cerrarModal">Cancelar</button>
+                    <button type="button" class="danger" wire:click="darBajaMantenimiento">Dar de baja</button>
                 </div>
             </section>
         </div>
@@ -463,9 +505,18 @@
             border-left-color: #f59e0b;
         }
 
+        .maintenance-row.proximo {
+            border-left-color: #eab308;
+        }
+
         .maintenance-row.vencido,
         .maintenance-row.incompleto {
             border-left-color: #ef4444;
+        }
+
+        .maintenance-row.baja {
+            border-left-color: #94a3b8;
+            opacity: .78;
         }
 
         .maintenance-row strong,
@@ -495,6 +546,16 @@
             font-weight: 900;
         }
 
+        .maintenance-row em.pill-active {
+            background: #dcfce7;
+            color: #047857;
+        }
+
+        .maintenance-row em.pill-down {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
         .maintenance-actions {
             display: flex;
             justify-content: flex-end;
@@ -512,6 +573,16 @@
         .maintenance-modal-actions .danger {
             background: #fff0f3;
             color: #b42345;
+        }
+
+        .maintenance-actions .warning {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .maintenance-actions .success {
+            background: #ecfdf3;
+            color: #047857;
         }
 
         .maintenance-inline-form {
@@ -606,6 +677,23 @@
         .maintenance-modal-actions .primary {
             background: #1266f1;
             color: #ffffff;
+        }
+
+        .maintenance-modal-label {
+            display: grid;
+            gap: 6px;
+            color: #607086;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .maintenance-modal-label textarea {
+            width: 100%;
+            border: 1px solid #d9e1ec;
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #172033;
+            font-weight: 800;
         }
 
         .maintenance-preview {

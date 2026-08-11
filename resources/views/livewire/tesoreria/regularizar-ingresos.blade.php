@@ -1185,8 +1185,13 @@
                     <div class="import-preview">
                         @foreach ($importacionPreview as $item)
                             <div>
-                                <strong>{{ $item['departamento'] }}</strong>
-                                <span>{{ implode(', ', $item['meses']) }}/{{ $item['anio'] }} - Bs {{ number_format($item['monto'], 2) }}</span>
+                                <strong>{{ $item['tipo_aplicacion'] }}{{ !empty($item['departamento']) ? ' - '.$item['departamento'] : '' }}</strong>
+                                <span>
+                                    @if (!empty($item['meses']))
+                                        {{ implode(', ', $item['meses']) }}/{{ $item['anio'] }} -
+                                    @endif
+                                    Bs {{ number_format($item['monto'], 2) }}
+                                </span>
                             </div>
                         @endforeach
                     </div>

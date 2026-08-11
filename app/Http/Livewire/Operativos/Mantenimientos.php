@@ -55,6 +55,10 @@ class Mantenimientos extends Component
 
     public $eliminandoId;
 
+    public $bajaId;
+
+    public $motivoBaja;
+
     public function verImagen($ruta)
     {
         $this->imagenModal = $ruta;
@@ -120,6 +124,7 @@ class Mantenimientos extends Component
             'descripcion' => $this->descripcion,
             'comprobante' => $ruta,
             'user_id' => Auth::id(),
+            'estado' => 'Activo',
         ]);
 
         $this->reset(['tipoMantenimiento', 'proveedor', 'fecha', 'monto', 'descripcion', 'comprobante']);
@@ -194,6 +199,49 @@ class Mantenimientos extends Component
         $this->eliminandoId = $id;
     }
 
+    public function confirmarBaja($id)
+    {
+        $this->bajaId = $id;
+        $this->motivoBaja = '';
+    }
+
+    public function darBajaMantenimiento()
+    {
+        $mantenimiento = Mantenimiento::find($this->bajaId);
+
+        if (! $mantenimiento) {
+            $this->cerrarModal();
+
+            return;
+        }
+
+        $mantenimiento->update([
+            'estado' => 'Baja',
+            'fecha_baja' => now(),
+            'motivo_baja' => trim($this->motivoBaja ?? ''),
+        ]);
+
+        $this->cerrarModal();
+        $this->emit('alert', 'Mantenimiento dado de baja correctamente.');
+    }
+
+    public function reactivarMantenimiento($id)
+    {
+        $mantenimiento = Mantenimiento::find($id);
+
+        if (! $mantenimiento) {
+            return;
+        }
+
+        $mantenimiento->update([
+            'estado' => 'Activo',
+            'fecha_baja' => null,
+            'motivo_baja' => null,
+        ]);
+
+        $this->emit('alert', 'Mantenimiento reactivado correctamente.');
+    }
+
     public function eliminarMantenimiento()
     {
         $mantenimiento = Mantenimiento::find($this->eliminandoId);
@@ -221,6 +269,8 @@ class Mantenimientos extends Component
             'editDescripcion',
             'editComprobante',
             'eliminandoId',
+            'bajaId',
+            'motivoBaja',
         ]);
         $this->resetValidation();
     }
@@ -247,10 +297,16 @@ class Mantenimientos extends Component
 
     public function render()
     {
+        $mantenimientos = Mantenimiento::with('tipo', 'proveedor')
+            ->orderByRaw("CASE WHEN COALESCE(estado, 'Activo') = 'Activo' THEN 0 ELSE 1 END")
+            ->orderBy('fecha_siguiente')
+            ->latest()
+            ->get();
+
         return view('livewire.operativos.mantenimientos', [
             'tipos' => TipoMantenimiento::orderBy('nombre')->get(),
             'proveedores' => Proveedor::with('tipo')->orderBy('nombre')->get(),
-            'mantenimientos' => Mantenimiento::with('tipo', 'proveedor')->latest()->get(),
+            'mantenimientos' => $mantenimientos,
         ]);
     }
 }
