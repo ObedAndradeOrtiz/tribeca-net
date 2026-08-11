@@ -7,8 +7,9 @@
 
         <form method="POST" action="{{ route('logout') }}">
             @csrf
-            <button type="submit" class="resident-icon-btn" title="Cerrar sesion">
+            <button type="submit" class="resident-logout-btn" title="Cerrar sesion">
                 <i class="bi bi-box-arrow-right"></i>
+                Salir
             </button>
         </form>
     </div>
@@ -218,7 +219,7 @@
             font-weight: 800;
         }
 
-        .resident-icon-btn,
+        .resident-logout-btn,
         .resident-primary-btn {
             border: none;
             display: inline-flex;
@@ -228,12 +229,13 @@
             font-weight: 900;
         }
 
-        .resident-icon-btn {
-            width: 42px;
+        .resident-logout-btn {
             height: 42px;
+            padding: 0 13px;
             border-radius: 8px;
-            background: #eef2f7;
-            color: #344256;
+            background: #172033;
+            color: #ffffff;
+            box-shadow: 0 8px 18px rgba(23, 32, 51, .18);
         }
 
         .resident-primary-btn {
