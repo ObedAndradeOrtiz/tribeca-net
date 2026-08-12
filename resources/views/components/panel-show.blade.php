@@ -241,14 +241,14 @@
                                 </div>
 
                                 {{-- COPROPIETARIOS --}}
-                                <div class="menu-item">
+                                {{-- <div class="menu-item">
                                     <a class="menu-link" href="/clientes">
                                         <span class="menu-icon">
                                             <i class="bi bi-people fs-3"></i>
                                         </span>
                                         <span class="menu-title">Copropietarios</span>
                                     </a>
-                                </div>
+                                </div> --}}
 
                                 {{-- AREAS COMUNES --}}
                                 <div data-kt-menu-trigger="click" class="menu-item menu-accordion">
