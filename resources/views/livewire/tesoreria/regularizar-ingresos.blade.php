@@ -75,7 +75,7 @@
                 </select>
             </div>
 
-            <div class="col-xl-3 col-md-3">
+            <div class="col-xl-2 col-md-3">
                 <label class="reg-label">Estado</label>
                 <select class="reg-control" wire:model="estado">
                     <option value="Todos">Todos</option>
@@ -87,7 +87,16 @@
                 </select>
             </div>
 
-            <div class="col-xl-5 col-md-12">
+            <div class="col-xl-2 col-md-3">
+                <label class="reg-label">Tipo</label>
+                <select class="reg-control" wire:model="filtroTipoMonto">
+                    <option value="Todos">Todos</option>
+                    <option value="salon">Posible salon hasta Bs 150</option>
+                    <option value="expensa">Expensas mayor a Bs 150</option>
+                </select>
+            </div>
+
+            <div class="col-xl-4 col-md-12">
                 <label class="reg-label">Buscar ingreso</label>
                 <div class="reg-search">
                     <i class="bi bi-search"></i>

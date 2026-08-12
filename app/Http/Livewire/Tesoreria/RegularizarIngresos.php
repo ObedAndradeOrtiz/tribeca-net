@@ -31,6 +31,8 @@ class RegularizarIngresos extends Component
 
     public $busqueda = '';
 
+    public $filtroTipoMonto = 'Todos';
+
     public $modalRegularizar = false;
 
     public $modalCrearIngreso = false;
@@ -2163,6 +2165,12 @@ class RegularizarIngresos extends Component
                         ->orWhere('numero_comprobante', 'like', '%'.$this->busqueda.'%')
                         ->orWhere('detalle', 'like', '%'.$this->busqueda.'%');
                 });
+            })
+            ->when($this->filtroTipoMonto === 'salon', function ($q) {
+                $q->where('monto', '<=', 150);
+            })
+            ->when($this->filtroTipoMonto === 'expensa', function ($q) {
+                $q->where('monto', '>', 150);
             });
 
         /*
@@ -2196,6 +2204,12 @@ class RegularizarIngresos extends Component
                         ->orWhere('numero_comprobante', 'like', '%'.$this->busqueda.'%')
                         ->orWhere('detalle', 'like', '%'.$this->busqueda.'%');
                 });
+            })
+            ->when($this->filtroTipoMonto === 'salon', function ($q) {
+                $q->where('monto', '<=', 150);
+            })
+            ->when($this->filtroTipoMonto === 'expensa', function ($q) {
+                $q->where('monto', '>', 150);
             })
             ->orderBy('fecha')
             ->orderBy('hora')
