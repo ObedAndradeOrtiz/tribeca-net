@@ -38,6 +38,19 @@
                     </span>
                 </button>
 
+                <button type="button" class="btn-report-secondary" wire:click="abrirModalImagenes"
+                    wire:loading.attr="disabled" wire:target="abrirModalImagenes">
+                    <span wire:loading.remove wire:target="abrirModalImagenes">
+                        <i class="bi bi-images"></i>
+                        Imagenes
+                    </span>
+
+                    <span wire:loading wire:target="abrirModalImagenes">
+                        <i class="bi bi-hourglass-split"></i>
+                        Revisando...
+                    </span>
+                </button>
+
                 <button type="button" class="btn-report-pdf" wire:click="generarPdf" wire:loading.attr="disabled"
                     wire:target="generarPdf">
 
@@ -407,6 +420,102 @@
             </div>
         @endif
 
+        <x-modal wire:model="modalImagenes" maxWidth="xl">
+            <div class="image-export-modal">
+                <div class="image-export-header">
+                    <div>
+                        <span class="image-export-kicker">Comprobantes</span>
+                        <h3>Descargar imagenes por fecha</h3>
+                        <p>Selecciona un rango para crear un ZIP con los archivos encontrados.</p>
+                    </div>
+
+                    <button type="button" class="image-export-close" wire:click="cerrarModalImagenes">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+
+                <div class="image-export-grid">
+                    <div class="image-export-field">
+                        <label>Desde</label>
+                        <input type="date" wire:model.defer="imagenFechaInicio">
+                    </div>
+
+                    <div class="image-export-field">
+                        <label>Hasta</label>
+                        <input type="date" wire:model.defer="imagenFechaFin">
+                    </div>
+
+                    <div class="image-export-field">
+                        <label>Tipo</label>
+                        <select wire:model.defer="imagenTipo">
+                            <option value="todos">Todos</option>
+                            <option value="ingresos">Ingresos</option>
+                            <option value="egresos">Egresos</option>
+                            <option value="mantenimientos">Mantenimientos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="image-export-actions">
+                    <button type="button" class="btn-report-secondary" wire:click="buscarImagenes"
+                        wire:loading.attr="disabled" wire:target="buscarImagenes">
+                        <i class="bi bi-search"></i>
+                        Revisar archivos
+                    </button>
+
+                    <button type="button" class="btn btn-primary" wire:click="descargarImagenes"
+                        wire:loading.attr="disabled" wire:target="descargarImagenes">
+                        <span wire:loading.remove wire:target="descargarImagenes">
+                            <i class="bi bi-file-earmark-zip"></i>
+                            Descargar ZIP
+                        </span>
+
+                        <span wire:loading wire:target="descargarImagenes">
+                            <i class="bi bi-hourglass-split"></i>
+                            Creando ZIP...
+                        </span>
+                    </button>
+                </div>
+
+                <div class="image-export-summary">
+                    <div>
+                        <span>Archivos</span>
+                        <strong>{{ $totalImagenesEncontradas }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Tamano aprox.</span>
+                        <strong>{{ number_format($tamanoImagenesEncontradas / 1024 / 1024, 2) }} MB</strong>
+                    </div>
+                </div>
+
+                <div class="image-export-list">
+                    @forelse ($imagenesEncontradas as $archivo)
+                        <div class="image-export-item">
+                            <div>
+                                <strong>{{ $archivo['nombre'] }}</strong>
+                                <span>{{ $archivo['grupo'] }} - {{ $archivo['fecha'] }}</span>
+                            </div>
+
+                            <a href="{{ $archivo['url'] }}" target="_blank" rel="noopener">
+                                Abrir
+                            </a>
+                        </div>
+                    @empty
+                        <div class="image-export-empty">
+                            No hay archivos encontrados para el rango seleccionado.
+                        </div>
+                    @endforelse
+                </div>
+
+                @if ($totalImagenesEncontradas > count($imagenesEncontradas))
+                    <p class="image-export-note">
+                        Se muestran los primeros {{ count($imagenesEncontradas) }} archivos. El ZIP incluye todos los encontrados.
+                    </p>
+                @endif
+            </div>
+        </x-modal>
+
         <style>
             .report-card-total.danger {
                 background: #fef2f2;
@@ -424,6 +533,178 @@
             .egreso-amount {
                 font-weight: 950;
                 color: #dc2626 !important;
+            }
+
+            .image-export-modal {
+                color: #111827;
+            }
+
+            .image-export-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+                padding-bottom: 14px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .image-export-kicker {
+                display: block;
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 950;
+                text-transform: uppercase;
+            }
+
+            .image-export-header h3 {
+                margin: 4px 0 4px;
+                font-size: 22px;
+                font-weight: 950;
+                color: #111827;
+            }
+
+            .image-export-header p {
+                margin: 0;
+                color: #64748b;
+                font-size: 13px;
+                font-weight: 700;
+            }
+
+            .image-export-close {
+                width: 38px;
+                height: 38px;
+                border: none;
+                border-radius: 12px;
+                background: #f1f5f9;
+                color: #64748b;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .image-export-grid {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+                margin-top: 16px;
+            }
+
+            .image-export-field label {
+                display: block;
+                margin-bottom: 6px;
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 950;
+                text-transform: uppercase;
+            }
+
+            .image-export-field input,
+            .image-export-field select {
+                width: 100%;
+                height: 44px;
+                border: 1px solid #dbe3ef;
+                border-radius: 12px;
+                padding: 0 12px;
+                color: #111827;
+                font-size: 13px;
+                font-weight: 850;
+                outline: none;
+            }
+
+            .image-export-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 14px;
+            }
+
+            .image-export-summary {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                margin-top: 14px;
+            }
+
+            .image-export-summary div {
+                border: 1px solid #dbeafe;
+                border-radius: 14px;
+                background: #eff6ff;
+                padding: 12px;
+            }
+
+            .image-export-summary span {
+                display: block;
+                color: #2563eb;
+                font-size: 11px;
+                font-weight: 950;
+                text-transform: uppercase;
+            }
+
+            .image-export-summary strong {
+                display: block;
+                margin-top: 4px;
+                color: #1e3a8a;
+                font-size: 18px;
+                font-weight: 950;
+            }
+
+            .image-export-list {
+                margin-top: 14px;
+                border: 1px solid #e5e7eb;
+                border-radius: 14px;
+                overflow: hidden;
+            }
+
+            .image-export-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 10px 12px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .image-export-item:last-child {
+                border-bottom: none;
+            }
+
+            .image-export-item strong {
+                display: block;
+                font-size: 12px;
+                font-weight: 950;
+                overflow-wrap: anywhere;
+            }
+
+            .image-export-item span {
+                display: block;
+                color: #64748b;
+                font-size: 11px;
+                font-weight: 800;
+            }
+
+            .image-export-item a {
+                flex: 0 0 auto;
+                border-radius: 10px;
+                background: #f1f5f9;
+                color: #334155;
+                padding: 7px 10px;
+                font-size: 12px;
+                font-weight: 900;
+                text-decoration: none;
+            }
+
+            .image-export-empty {
+                padding: 18px;
+                color: #64748b;
+                font-weight: 850;
+                text-align: center;
+            }
+
+            .image-export-note {
+                margin: 10px 0 0;
+                color: #64748b;
+                font-size: 12px;
+                font-weight: 800;
             }
 
             .summary-grid {
@@ -987,6 +1268,33 @@
 
                 .report-card-right {
                     justify-content: flex-start;
+                }
+
+                .report-actions {
+                    flex-wrap: wrap;
+                }
+
+                .report-actions > button {
+                    flex: 1 1 150px;
+                    justify-content: center;
+                }
+
+                .image-export-grid,
+                .image-export-summary {
+                    grid-template-columns: 1fr;
+                }
+
+                .image-export-actions,
+                .image-export-item {
+                    align-items: stretch;
+                    flex-direction: column;
+                }
+
+                .image-export-actions button,
+                .image-export-item a {
+                    justify-content: center;
+                    text-align: center;
+                    width: 100%;
                 }
             }
         </style>

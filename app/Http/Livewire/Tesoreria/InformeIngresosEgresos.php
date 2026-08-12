@@ -5,9 +5,11 @@ namespace App\Http\Livewire\Tesoreria;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use ZipArchive;
 
 class InformeIngresosEgresos extends Component
 {
@@ -45,6 +47,20 @@ class InformeIngresosEgresos extends Component
         'saldo_anterior' => 0,
         'saldo_final_mes' => 0,
     ];
+
+    public $modalImagenes = false;
+
+    public $imagenFechaInicio;
+
+    public $imagenFechaFin;
+
+    public $imagenTipo = 'todos';
+
+    public $imagenesEncontradas = [];
+
+    public $totalImagenesEncontradas = 0;
+
+    public $tamanoImagenesEncontradas = 0;
 
     public function exportarExcel()
     {
@@ -484,6 +500,230 @@ class InformeIngresosEgresos extends Component
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, $nombreArchivo);
+    }
+
+    public function abrirModalImagenes()
+    {
+        $fecha = Carbon::create((int) $this->anio, (int) $this->mes, 1);
+
+        $this->imagenFechaInicio = $fecha->copy()->startOfMonth()->toDateString();
+        $this->imagenFechaFin = $fecha->copy()->endOfMonth()->toDateString();
+        $this->imagenTipo = 'todos';
+        $this->imagenesEncontradas = [];
+        $this->totalImagenesEncontradas = 0;
+        $this->tamanoImagenesEncontradas = 0;
+        $this->modalImagenes = true;
+
+        $this->buscarImagenes();
+    }
+
+    public function cerrarModalImagenes()
+    {
+        $this->modalImagenes = false;
+    }
+
+    public function buscarImagenes()
+    {
+        $archivos = $this->recolectarImagenesPorFecha();
+
+        $this->totalImagenesEncontradas = count($archivos);
+        $this->tamanoImagenesEncontradas = array_sum(array_column($archivos, 'size'));
+        $this->imagenesEncontradas = array_map(function ($archivo) {
+            return [
+                'grupo' => $archivo['grupo'],
+                'fecha' => $archivo['fecha'],
+                'nombre' => $archivo['nombre'],
+                'url' => $archivo['url'],
+            ];
+        }, array_slice($archivos, 0, 30));
+    }
+
+    public function descargarImagenes()
+    {
+        $archivos = $this->recolectarImagenesPorFecha();
+
+        if (empty($archivos)) {
+            $this->emit('error', 'No se encontraron imagenes para descargar.');
+
+            return null;
+        }
+
+        if (! class_exists(ZipArchive::class)) {
+            $this->emit('error', 'El servidor no tiene habilitada la extension ZIP de PHP.');
+
+            return null;
+        }
+
+        $fechaInicio = Carbon::parse($this->imagenFechaInicio)->format('Ymd');
+        $fechaFin = Carbon::parse($this->imagenFechaFin)->format('Ymd');
+        $nombreZip = "TRIBECA_IMAGENES_{$fechaInicio}_{$fechaFin}.zip";
+        $carpetaExport = storage_path('app/exports');
+
+        if (! is_dir($carpetaExport)) {
+            mkdir($carpetaExport, 0755, true);
+        }
+
+        $rutaZip = $carpetaExport.'/'.$nombreZip;
+        $zip = new ZipArchive;
+
+        if ($zip->open($rutaZip, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            $this->emit('error', 'No se pudo crear el archivo ZIP.');
+
+            return null;
+        }
+
+        foreach ($archivos as $archivo) {
+            $zip->addFile($archivo['absolute_path'], $archivo['zip_path']);
+        }
+
+        $zip->close();
+
+        return response()->download($rutaZip, $nombreZip)->deleteFileAfterSend(true);
+    }
+
+    protected function recolectarImagenesPorFecha()
+    {
+        $inicio = $this->imagenFechaInicio ?: now()->startOfMonth()->toDateString();
+        $fin = $this->imagenFechaFin ?: now()->endOfMonth()->toDateString();
+
+        try {
+            $inicio = Carbon::parse($inicio)->startOfDay()->toDateString();
+            $fin = Carbon::parse($fin)->endOfDay()->toDateString();
+        } catch (\Throwable $e) {
+            $this->emit('error', 'Selecciona un rango de fechas valido.');
+
+            return [];
+        }
+
+        if ($inicio > $fin) {
+            [$inicio, $fin] = [$fin, $inicio];
+        }
+
+        $tipo = $this->imagenTipo ?: 'todos';
+        $archivos = [];
+
+        if (in_array($tipo, ['todos', 'ingresos'], true)) {
+            $pagos = DB::table('pagos')
+                ->whereNotNull('path')
+                ->where('path', '!=', '')
+                ->where(function ($q) use ($inicio, $fin) {
+                    $q->whereRaw("
+                        STR_TO_DATE(
+                            COALESCE(NULLIF(fechapagado, ''), NULLIF(fechainicio, ''), NULLIF(fecha, '')),
+                            '%Y-%m-%d'
+                        ) BETWEEN ? AND ?
+                    ", [$inicio, $fin])
+                        ->orWhereRaw("
+                        STR_TO_DATE(
+                            COALESCE(NULLIF(fechapagado, ''), NULLIF(fechainicio, ''), NULLIF(fecha, '')),
+                            '%d/%m/%Y'
+                        ) BETWEEN ? AND ?
+                    ", [$inicio, $fin]);
+                })
+                ->select('id', 'path', 'namebeneficiario', 'fechapagado', 'fechainicio', 'fecha')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($pagos as $pago) {
+                $this->agregarArchivoZip($archivos, 'ingresos', $pago->id, $pago->path, $pago->namebeneficiario, $pago->fechapagado ?: $pago->fechainicio ?: $pago->fecha);
+            }
+        }
+
+        if (in_array($tipo, ['todos', 'egresos'], true)) {
+            $gastos = DB::table('gastos')
+                ->whereNotNull('rutaarchivo')
+                ->where('rutaarchivo', '!=', '')
+                ->where(function ($q) use ($inicio, $fin) {
+                    $q->whereRaw("
+                        STR_TO_DATE(
+                            COALESCE(NULLIF(fechainicio, ''), NULLIF(fechapagado, ''), NULLIF(fecha, '')),
+                            '%Y-%m-%d'
+                        ) BETWEEN ? AND ?
+                    ", [$inicio, $fin])
+                        ->orWhereRaw("
+                        STR_TO_DATE(
+                            COALESCE(NULLIF(fechainicio, ''), NULLIF(fechapagado, ''), NULLIF(fecha, '')),
+                            '%d/%m/%Y'
+                        ) BETWEEN ? AND ?
+                    ", [$inicio, $fin]);
+                })
+                ->select('id', 'rutaarchivo', 'empresa', 'fechainicio', 'fechapagado', 'fecha')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($gastos as $gasto) {
+                $this->agregarArchivoZip($archivos, 'egresos', $gasto->id, $gasto->rutaarchivo, $gasto->empresa, $gasto->fechainicio ?: $gasto->fechapagado ?: $gasto->fecha);
+            }
+        }
+
+        if (in_array($tipo, ['todos', 'mantenimientos'], true)) {
+            $mantenimientos = DB::table('mantenimientos')
+                ->whereNotNull('comprobante')
+                ->where('comprobante', '!=', '')
+                ->whereDate('fecha', '>=', $inicio)
+                ->whereDate('fecha', '<=', $fin)
+                ->select('id', 'comprobante', 'descripcion', 'fecha')
+                ->orderBy('fecha')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($mantenimientos as $mantenimiento) {
+                $this->agregarArchivoZip($archivos, 'mantenimientos', $mantenimiento->id, $mantenimiento->comprobante, $mantenimiento->descripcion, $mantenimiento->fecha);
+            }
+        }
+
+        return $archivos;
+    }
+
+    protected function agregarArchivoZip(&$archivos, $grupo, $id, $ruta, $detalle = null, $fecha = null)
+    {
+        $ruta = trim((string) $ruta);
+
+        if ($ruta === '') {
+            return;
+        }
+
+        $ruta = ltrim(str_replace('\\', '/', $ruta), '/');
+        $absolutePath = Storage::disk('public')->path($ruta);
+
+        if (! is_file($absolutePath)) {
+            return;
+        }
+
+        $extension = pathinfo($absolutePath, PATHINFO_EXTENSION) ?: 'archivo';
+        $fechaArchivo = $this->fechaArchivoZip($fecha);
+        $detalle = $this->limpiarNombreArchivo($detalle ?: $grupo);
+        $nombre = "{$fechaArchivo}_{$grupo}_{$id}_{$detalle}.{$extension}";
+
+        $archivos[] = [
+            'grupo' => ucfirst($grupo),
+            'id' => $id,
+            'fecha' => $fechaArchivo,
+            'nombre' => $nombre,
+            'ruta' => $ruta,
+            'url' => Storage::disk('public')->url($ruta),
+            'size' => filesize($absolutePath),
+            'absolute_path' => $absolutePath,
+            'zip_path' => $grupo.'/'.$nombre,
+        ];
+    }
+
+    protected function fechaArchivoZip($fecha)
+    {
+        try {
+            return Carbon::parse($fecha)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return 'sin-fecha';
+        }
+    }
+
+    protected function limpiarNombreArchivo($valor)
+    {
+        $valor = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string) $valor);
+        $valor = preg_replace('/[^A-Za-z0-9_-]+/', '-', $valor);
+        $valor = trim($valor, '-');
+
+        return substr($valor ?: 'archivo', 0, 45);
     }
 
     public function mount()
