@@ -10,6 +10,7 @@
         });
 
         $permisos = $rolesderol->pluck('vista')->toArray();
+        $isDirectorioReadonly = strtoupper((string) Auth::user()->rol) === 'DIRECTORIO';
         $mantenimientosNotificaciones = DB::table('mantenimientos')
             ->whereNotNull('fecha_siguiente')
             ->whereDate('fecha_siguiente', '<=', now()->addDays(15)->toDateString())
@@ -29,13 +30,20 @@
         <link href="assets/plugins/custom/datatables/datatables.bundle.css" rel="stylesheet" type="text/css" />
         <link href="assets/plugins/global/plugins.bundle.css" rel="stylesheet" type="text/css" />
         <link href="assets/css/style.bundle.css" rel="stylesheet" type="text/css" />
+        @if ($isDirectorioReadonly)
+            <style>
+                .directorio-readonly .directorio-readonly-banner {
+                    display: flex !important;
+                }
+            </style>
+        @endif
     </head>
 
 
     <body id="kt_app_body" data-kt-app-header-fixed="true" data-kt-app-header-fixed-mobile="true"
         data-kt-app-sidebar-enabled="true" data-kt-app-sidebar-fixed="true" data-kt-app-sidebar-push-toolbar="true"
         data-kt-app-sidebar-push-footer="true" data-kt-app-aside-enabled="true" data-kt-app-aside-fixed="false"
-        class="app-default">
+        class="app-default {{ $isDirectorioReadonly ? 'directorio-readonly' : '' }}">
 
         <div class="d-flex flex-column flex-root app-root" id="kt_app_root">
 
@@ -445,6 +453,17 @@
                         <div class="d-flex flex-column flex-column-fluid">
                             <div id="kt_app_content" class="app-content">
                                 <div id="kt_app_content_container" class="app-container container-fluid">
+                                    @if ($isDirectorioReadonly)
+                                        <div class="directorio-readonly-banner alert alert-primary d-none align-items-center gap-3 mb-4">
+                                            <i class="bi bi-eye fs-2"></i>
+                                            <div>
+                                                <strong>Modo solo lectura - DIRECTORIO</strong>
+                                                <div class="small">
+                                                    Puedes ver informacion y descargar reportes. Crear, editar, eliminar, importar o aplicar movimientos esta bloqueado.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
 
                                     @switch($presionado)
                                         @case(0)
@@ -607,6 +626,74 @@
         <script src="assets/js/widgets.bundle.js"></script>
         <script src="assets/js/custom/widgets.js"></script>
         <script src="assets/js/custom/apps/chat/chat.js"></script>
+        @if ($isDirectorioReadonly)
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const blockedPrefixes = [
+                        'agregar', 'anular', 'aprobar', 'asignar', 'borrar', 'cambiar', 'confirmar',
+                        'crear', 'dar', 'desactivar', 'editar', 'eliminar', 'guardar', 'importar',
+                        'pagar', 'quitar', 'reactivar', 'rechazar', 'regenerar', 'registrar',
+                        'solicitar', 'subir', 'update', 'usar', 'vender'
+                    ];
+                    const blockedWords = [
+                        'guardar', 'nuevo', 'registrar', 'eliminar', 'editar', 'subir', 'importar',
+                        'crear', 'generar codigo', 'regenerar', 'desactivar', 'activar', 'reactivar',
+                        'aprobar', 'rechazar', 'solicitar', 'pagar', 'aplicar', 'anular', 'dar de baja'
+                    ];
+                    const allowedWords = ['descargar', 'pdf', 'exportar', 'imprimir', 'reporte', 'ver', 'buscar', 'filtrar'];
+
+                    function methodName(value) {
+                        return String(value || '').split('(')[0].replace(/['"]/g, '').trim().toLowerCase();
+                    }
+
+                    function isAllowedText(text) {
+                        return allowedWords.some((word) => text.includes(word));
+                    }
+
+                    function hideReadonlyActions() {
+                        document.querySelectorAll('input[type="file"]').forEach((input) => {
+                            input.closest('label, div, form')?.classList.add('d-none');
+                        });
+
+                        document.querySelectorAll('[wire\\:click]').forEach((el) => {
+                            const method = methodName(el.getAttribute('wire:click'));
+                            const text = (el.innerText || el.value || '').toLowerCase();
+
+                            if (method.startsWith('$') || isAllowedText(text)) {
+                                return;
+                            }
+
+                            if (blockedPrefixes.some((prefix) => method.startsWith(prefix))) {
+                                el.classList.add('d-none');
+                            }
+                        });
+
+                        document.querySelectorAll('button, a.btn, input[type="submit"]').forEach((el) => {
+                            const text = (el.innerText || el.value || '').trim().toLowerCase();
+
+                            if (! text || isAllowedText(text)) {
+                                return;
+                            }
+
+                            if (blockedWords.some((word) => text.includes(word))) {
+                                el.classList.add('d-none');
+                            }
+                        });
+                    }
+
+                    hideReadonlyActions();
+
+                    if (window.Livewire && window.Livewire.hook) {
+                        window.Livewire.hook('message.processed', hideReadonlyActions);
+                    }
+
+                    new MutationObserver(hideReadonlyActions).observe(document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+                });
+            </script>
+        @endif
     </body>
     @endif
 </div>
