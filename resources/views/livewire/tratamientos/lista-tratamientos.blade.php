@@ -81,6 +81,20 @@
                                             placeholder="Buscar departamento...">
                                     </div>
                                 </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" wire:model="filtroEstadoDepartamento">
+                                        <option value="Todos">Todos</option>
+                                        <option value="Activo">Activos</option>
+                                        <option value="Inactivo">Inactivos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" wire:model="filtroAccesoArea">
+                                        <option value="">Todos los accesos</option>
+                                        <option value="piscina">Uso piscina</option>
+                                        <option value="salon">Uso salon</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <!-- TABLA -->
@@ -93,6 +107,7 @@
                                             <th>Tipo</th>
                                             <th>Descripción</th>
                                             <th>Costo</th>
+                                            <th>Accesos</th>
                                             <th>Estado</th>
                                             <th>Acción</th>
                                         </tr>
@@ -124,9 +139,25 @@
                                                 </td>
 
                                                 <td>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @if ($areaPiscinaId && isset($permisos[$lista->id][$areaPiscinaId]))
+                                                            <span class="badge bg-light-info text-info">Piscina</span>
+                                                        @else
+                                                            <span class="badge bg-light text-muted">Sin piscina</span>
+                                                        @endif
+
+                                                        @if ($areaSalonId && isset($permisos[$lista->id][$areaSalonId]))
+                                                            <span class="badge bg-light-success text-success">Salon</span>
+                                                        @else
+                                                            <span class="badge bg-light text-muted">Sin salon</span>
+                                                        @endif
+                                                    </div>
+                                                </td>
+
+                                                <td>
                                                     <span @class([
                                                         'badge',
-                                                        'bg-success' => $lista->estado == 'Activo',
+                                                        'bg-success' => in_array($lista->estado, ['Activo', 'Ocupado']),
                                                         'bg-danger' => $lista->estado == 'Inactivo',
                                                         'bg-warning' => $lista->estado == 'Pendiente',
                                                     ])>
@@ -135,14 +166,21 @@
                                                 </td>
 
                                                 <td>
-                                                    @livewire('tratamientos.vista-tratamiento', ['idtratamiento' => $lista->id], key($lista->id))
+                                                    <div class="d-flex gap-2 align-items-center">
+                                                        <button class="btn btn-sm btn-light-info"
+                                                            title="Ver reporte de uso"
+                                                            wire:click="verReporteDepartamento({{ $lista->id }})">
+                                                            <i class="bi bi-eye"></i>
+                                                        </button>
+                                                        @livewire('tratamientos.vista-tratamiento', ['idtratamiento' => $lista->id], key($lista->id))
+                                                    </div>
                                                 </td>
 
                                             </tr>
 
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="text-center text-muted py-5">
+                                                <td colspan="7" class="text-center text-muted py-5">
                                                     <i class="bi bi-inbox fs-2 d-block mb-2"></i>
                                                     No hay departamentos registrados
                                                 </td>
@@ -187,6 +225,16 @@
                             </div>
 
                             <!-- 🔥 TABLA -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <select class="form-select" wire:model="filtroEstadoOcupacion">
+                                        <option value="Todos">Todos</option>
+                                        <option value="Activo">Activos</option>
+                                        <option value="Inactivo">Inactivos</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <div class="table-responsive">
 
                                 <table class="table table-row-bordered table-hover align-middle">
@@ -318,6 +366,20 @@
                                         <input type="text" class="form-control ps-10" wire:model.debounce.500ms="busqueda"
                                             placeholder="Buscar departamento...">
                                     </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" wire:model="filtroEstadoDepartamento">
+                                        <option value="Todos">Todos</option>
+                                        <option value="Activo">Activos</option>
+                                        <option value="Inactivo">Inactivos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" wire:model="filtroAccesoArea">
+                                        <option value="">Todos los accesos</option>
+                                        <option value="piscina">Uso piscina</option>
+                                        <option value="salon">Uso salon</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -551,5 +613,134 @@
 
             </div>
 
+        </x-modal>
+
+        <x-modal wire:model.defer="modalReporteDepartamento">
+            <div class="px-6 pt-5 pb-3 border-bottom">
+                <h4 class="fw-bold mb-1">
+                    <i class="bi bi-eye me-2"></i>
+                    Reporte {{ $reporteDepartamento['nombre'] ?? '' }}
+                </h4>
+                <span class="text-muted small">
+                    Personas registradas y uso estimado de salon
+                </span>
+            </div>
+
+            <div class="px-6 py-4">
+                <ul class="nav nav-tabs nav-line-tabs mb-5 fs-6">
+                    <li class="nav-item">
+                        <button type="button" class="nav-link {{ $reporteTab === 'personas' ? 'active' : '' }}"
+                            wire:click="$set('reporteTab','personas')">
+                            Personas
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link {{ $reporteTab === 'salon' ? 'active' : '' }}"
+                            wire:click="$set('reporteTab','salon')">
+                            Uso salon
+                        </button>
+                    </li>
+                </ul>
+
+                @if ($reporteTab === 'personas')
+                    <div class="table-responsive">
+                        <table class="table table-row-bordered align-middle">
+                            <thead class="fw-bold text-muted bg-light">
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>CI</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha inicio</th>
+                                    <th>Fecha fin</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($reportePersonas as $persona)
+                                    <tr>
+                                        <td class="fw-semibold">{{ $persona['nombre'] }}</td>
+                                        <td>{{ $persona['ci'] }}</td>
+                                        <td>
+                                            {{ strtoupper($persona['tipo']) }}
+                                            @if ($persona['parentesco'])
+                                                <div class="text-muted small">{{ $persona['parentesco'] }}</div>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            {{ $persona['fecha_inicio'] ? \Carbon\Carbon::parse($persona['fecha_inicio'])->format('d/m/Y') : '-' }}
+                                        </td>
+                                        <td>
+                                            {{ $persona['fecha_fin'] ? \Carbon\Carbon::parse($persona['fecha_fin'])->format('d/m/Y') : '-' }}
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ $persona['estado'] === 'Activo' ? 'bg-success' : 'bg-danger' }}">
+                                                {{ $persona['estado'] }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-5">
+                                            No hay personas registradas para este departamento.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="row g-3 mb-4">
+                        @foreach ($reporteUsoSalonResumen as $anio => $cantidad)
+                            <div class="col-6 col-md-3 col-xl-2">
+                                <div class="border rounded p-3 h-100">
+                                    <div class="text-muted small">{{ $anio }}</div>
+                                    <div class="fs-4 fw-bold">{{ $cantidad }}</div>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="alert alert-light-warning">
+                        Total estimado: <strong>{{ $reporteUsoSalonTotal }}</strong>. Se calcula buscando ingresos de salon que mencionen el departamento en detalle, observacion o aplicacion.
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-row-bordered align-middle">
+                            <thead class="fw-bold text-muted bg-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Depositante</th>
+                                    <th>Detalle</th>
+                                    <th>Comprobante</th>
+                                    <th class="text-end">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($reporteUsoSalon as $uso)
+                                    <tr>
+                                        <td>{{ $uso['fecha'] ? \Carbon\Carbon::parse($uso['fecha'])->format('d/m/Y') : '-' }}</td>
+                                        <td class="fw-semibold">{{ $uso['depositante'] }}</td>
+                                        <td style="min-width: 260px;">{{ $uso['detalle'] }}</td>
+                                        <td>{{ $uso['comprobante'] }}</td>
+                                        <td class="text-end fw-bold">Bs {{ number_format($uso['monto'], 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-5">
+                                            No se encontraron coincidencias de uso de salon para este departamento desde 2024.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+
+            <div class="px-6 py-4 border-top d-flex justify-content-end">
+                <button class="btn btn-light" wire:click="$set('modalReporteDepartamento',false)">
+                    Cerrar
+                </button>
+            </div>
         </x-modal>
     </div>

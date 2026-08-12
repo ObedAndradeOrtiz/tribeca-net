@@ -98,6 +98,21 @@
                     </select>
                 </div>
 
+                <div class="col-12">
+                    <label class="form-label fw-semibold">Permisos de uso</label>
+                    <div class="d-flex flex-wrap gap-4">
+                        <label class="form-check form-check-custom form-check-solid">
+                            <input class="form-check-input" type="checkbox" wire:model.defer="puede_usar_piscina">
+                            <span class="form-check-label">Puede usar piscina</span>
+                        </label>
+
+                        <label class="form-check form-check-custom form-check-solid">
+                            <input class="form-check-input" type="checkbox" wire:model.defer="puede_usar_salon">
+                            <span class="form-check-label">Puede usar salon</span>
+                        </label>
+                    </div>
+                </div>
+
             </div>
 
         </div>
