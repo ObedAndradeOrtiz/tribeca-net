@@ -116,10 +116,13 @@ class PreventDirectorioMutations
             'crear',
             'dar',
             'desactivar',
+            'dividir',
             'editar',
             'eliminar',
             'guardar',
             'importar',
+            'marcar',
+            'mover',
             'pagar',
             'quitar',
             'reactivar',
@@ -141,12 +144,16 @@ class PreventDirectorioMutations
 
         $blockedExact = [
             'abrircrear',
+            'abrircrearexpensas',
             'abrireditar',
             'abririmportaringresos',
+            'abrirmodaldividirpago',
             'abrirregularizar',
             'abrirnuevo',
             'cerrarcaja',
+            'dividirrapidopago',
             'guardarregularizacion',
+            'guardardivisionpago',
             'validarimportacioningresos',
         ];
 

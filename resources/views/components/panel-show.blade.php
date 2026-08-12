@@ -204,7 +204,7 @@
 
 
                                 {{-- ADMINISTRACIÓN --}}
-                                @if (in_array('Recepcion', $permisos))
+                                @if (in_array('Recepcion', $permisos) || $isDirectorioReadonly)
                                     <div class="menu-item">
                                         <a class="menu-link" href="/recepcion">
                                             <span class="menu-icon">
@@ -321,7 +321,7 @@
                                         </div>
                                     </div>
                                 @endif
-                                @if (in_array('Administrador', $permisos))
+                                @if (in_array('Administrador', $permisos) || $isDirectorioReadonly)
                                     <div data-kt-menu-trigger="click" class="menu-item menu-accordion">
                                         <span class="menu-link">
                                             <span class="menu-icon">
@@ -333,6 +333,14 @@
                                         </span>
 
                                         <div class="menu-sub menu-sub-accordion">
+
+                                            <div class="menu-item">
+                                                <a class="menu-link" href="/tesoreria">
+                                                    <span class="menu-bullet"><span
+                                                            class="bullet bullet-dot"></span></span>
+                                                    <span class="menu-title">Tesoreria</span>
+                                                </a>
+                                            </div>
 
                                             <div class="menu-item">
                                                 <a class="menu-link" href="/reporte-completo">
@@ -383,7 +391,7 @@
                                 </div>
 
                                 {{-- INVENTARIOS --}}
-                                @if (in_array('Administrador', $permisos))
+                                @if (in_array('Administrador', $permisos) || $isDirectorioReadonly)
                                     <div data-kt-menu-trigger="click" class="menu-item menu-accordion">
                                         <span class="menu-link">
                                             <span class="menu-icon">
@@ -414,7 +422,7 @@
 
 
                                 {{-- ESTADÍSTICAS --}}
-                                @if (in_array('Administrador', $permisos))
+                                @if (in_array('Administrador', $permisos) || $isDirectorioReadonly)
                                     <div data-kt-menu-trigger="click" class="menu-item menu-accordion">
                                         <span class="menu-link">
                                             <span class="menu-icon">
@@ -631,14 +639,15 @@
                 document.addEventListener('DOMContentLoaded', function () {
                     const blockedPrefixes = [
                         'agregar', 'anular', 'aprobar', 'asignar', 'borrar', 'cambiar', 'confirmar',
-                        'crear', 'dar', 'desactivar', 'editar', 'eliminar', 'guardar', 'importar',
-                        'pagar', 'quitar', 'reactivar', 'rechazar', 'regenerar', 'registrar',
+                        'crear', 'dar', 'desactivar', 'dividir', 'editar', 'eliminar', 'guardar', 'importar',
+                        'marcar', 'mover', 'pagar', 'quitar', 'reactivar', 'rechazar', 'regenerar', 'registrar',
                         'solicitar', 'subir', 'update', 'usar', 'vender'
                     ];
                     const blockedWords = [
                         'guardar', 'nuevo', 'registrar', 'eliminar', 'editar', 'subir', 'importar',
                         'crear', 'generar codigo', 'regenerar', 'desactivar', 'activar', 'reactivar',
-                        'aprobar', 'rechazar', 'solicitar', 'pagar', 'aplicar', 'anular', 'dar de baja'
+                        'aprobar', 'rechazar', 'solicitar', 'pagar', 'aplicar', 'anular', 'dar de baja',
+                        'mover', 'dividir', 'marcar'
                     ];
                     const allowedWords = ['descargar', 'pdf', 'exportar', 'imprimir', 'reporte', 'ver', 'buscar', 'filtrar'];
 

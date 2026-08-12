@@ -1,4 +1,7 @@
 <div class="estado-page">
+    @php
+        $soloLecturaDirectorio = strtoupper((string) (Auth::user()->rol ?? '')) === 'DIRECTORIO';
+    @endphp
 
     <div class="estado-header">
         <div>
@@ -257,10 +260,12 @@
 
                 <div class="detail-actions">
 
-                    <button type="button" class="btn-create-exp" wire:click="abrirCrearExpensas">
-                        <i class="bi bi-calendar-plus"></i>
-                        Crear expensas
-                    </button>
+                    @unless ($soloLecturaDirectorio)
+                        <button type="button" class="btn-create-exp" wire:click="abrirCrearExpensas">
+                            <i class="bi bi-calendar-plus"></i>
+                            Crear expensas
+                        </button>
+                    @endunless
                 </div>
 
                 <div class="estado-lista-expensas">
@@ -394,24 +399,26 @@
                                                                     Bs {{ number_format($pago['monto'], 2) }}
                                                                 </div>
 
-                                                                <div class="pago-move-actions">
-                                                                    <button type="button" class="btn-move-payment"
-                                                                        title="Mover este pago al mes anterior"
-                                                                        wire:click="moverPagoAplicado({{ $pago['id'] }}, 'arriba')">
-                                                                        <i class="bi bi-arrow-up"></i>
-                                                                    </button>
+                                                                @unless ($soloLecturaDirectorio)
+                                                                    <div class="pago-move-actions">
+                                                                        <button type="button" class="btn-move-payment"
+                                                                            title="Mover este pago al mes anterior"
+                                                                            wire:click="moverPagoAplicado({{ $pago['id'] }}, 'arriba')">
+                                                                            <i class="bi bi-arrow-up"></i>
+                                                                        </button>
 
-                                                                    <button type="button" class="btn-move-payment"
-                                                                        title="Mover este pago al mes siguiente"
-                                                                        wire:click="moverPagoAplicado({{ $pago['id'] }}, 'abajo')">
-                                                                        <i class="bi bi-arrow-down"></i>
-                                                                    </button>
-                                                                    <button type="button" class="btn-move-payment"
-                                                                        title="Dividir este pago"
-                                                                        wire:click="abrirModalDividirPago({{ $pago['id'] }})">
-                                                                        <i class="bi bi-scissors"></i>
-                                                                    </button>
-                                                                </div>
+                                                                        <button type="button" class="btn-move-payment"
+                                                                            title="Mover este pago al mes siguiente"
+                                                                            wire:click="moverPagoAplicado({{ $pago['id'] }}, 'abajo')">
+                                                                            <i class="bi bi-arrow-down"></i>
+                                                                        </button>
+                                                                        <button type="button" class="btn-move-payment"
+                                                                            title="Dividir este pago"
+                                                                            wire:click="abrirModalDividirPago({{ $pago['id'] }})">
+                                                                            <i class="bi bi-scissors"></i>
+                                                                        </button>
+                                                                    </div>
+                                                                @endunless
                                                             </div>
 
                                                         </div>
@@ -441,6 +448,11 @@
                                             </div>
                                         </td>
                                         <td class="text-end">
+                                            @if ($soloLecturaDirectorio)
+                                                <span class="no-delete-mini">
+                                                    {{ ($exp['monto_pagado'] > 0 || count($exp['aplicaciones']) > 0) ? 'Con pago' : 'Solo lectura' }}
+                                                </span>
+                                            @else
                                             @if ($exp['monto_pagado'] <= 0 && count($exp['aplicaciones']) === 0)
                                                 <button type="button" class="btn-delete-exp-mini"
                                                     onclick="confirm('¿Eliminar esta expensa? Esta acción no se puede deshacer.') || event.stopImmediatePropagation()"
@@ -475,6 +487,7 @@
                                                     wire:click="marcarExoneradoAdministrador({{ $exp['id'] }})">
                                                     <i class="bi bi-person-badge"></i>
                                                 </button>
+                                            @endif
                                             @endif
                                         </td>
                                     </tr>

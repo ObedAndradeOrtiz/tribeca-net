@@ -23,6 +23,17 @@ class EstadoDepartamentos extends Component
 
     public $tipoSeleccionado = '';
 
+    protected function bloquearDirectorio(): bool
+    {
+        if (strtoupper((string) (Auth::user()->rol ?? '')) !== 'DIRECTORIO') {
+            return false;
+        }
+
+        $this->emit('error', 'El rol DIRECTORIO solo puede ver y descargar informacion.');
+
+        return true;
+    }
+
     public $costoSeleccionado = 0;
 
     public $tratamientoIdSeleccionado = null;
@@ -635,6 +646,10 @@ class EstadoDepartamentos extends Component
 
     public function abrirModalDividirPago($aplicacionId)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $aplicacion = DB::table('ingresos_bancarios_aplicaciones as iba')
             ->leftJoin('expensas as e', 'e.id', '=', 'iba.expensa_id')
             ->leftJoin('ingresos_bancarios as ib', 'ib.id', '=', 'iba.ingreso_bancario_id')
@@ -725,6 +740,10 @@ class EstadoDepartamentos extends Component
 
     public function agregarParteDividir()
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $this->partesDividir[] = [
             'monto' => '',
             'observacion' => 'Parte de pago dividido',
@@ -733,12 +752,20 @@ class EstadoDepartamentos extends Component
 
     public function quitarParteDividir($index)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         unset($this->partesDividir[$index]);
         $this->partesDividir = array_values($this->partesDividir);
     }
 
     public function dividirRapidoPago($tipo)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $montoOriginal = round((float) ($this->pagoDividir['monto'] ?? 0), 2);
 
         if ($montoOriginal <= 0) {
@@ -782,6 +809,10 @@ class EstadoDepartamentos extends Component
 
     public function guardarDivisionPago()
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         if (! $this->aplicacionDividirId || empty($this->pagoDividir)) {
             $this->emit('error', 'No hay pago seleccionado para dividir.');
 
@@ -1079,6 +1110,10 @@ class EstadoDepartamentos extends Component
 
     public function moverPagoAplicado($aplicacionId, $direccion)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $aplicacion = DB::table('ingresos_bancarios_aplicaciones')
             ->where('id', $aplicacionId)
             ->where('estado', '!=', 'Anulado')
@@ -1251,6 +1286,10 @@ class EstadoDepartamentos extends Component
 
     public function eliminarExpensaIrregular($expensaId)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $expensa = DB::table('expensas')
             ->where('id', $expensaId)
             ->first();
@@ -1900,6 +1939,10 @@ class EstadoDepartamentos extends Component
 
     public function marcarIncompletoTolerado($expensaId)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $expensa = DB::table('expensas')
             ->where('id', $expensaId)
             ->first();
@@ -1929,6 +1972,10 @@ class EstadoDepartamentos extends Component
 
     public function marcarExoneradoAdministrador($expensaId)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $expensa = DB::table('expensas')
             ->where('id', $expensaId)
             ->first();
@@ -1961,6 +2008,10 @@ class EstadoDepartamentos extends Component
 
     public function quitarNoCobro($expensaId)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $expensa = DB::table('expensas')
             ->where('id', $expensaId)
             ->first();
@@ -2007,6 +2058,10 @@ class EstadoDepartamentos extends Component
 
     public function abrirCrearExpensas()
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         if (! $this->departamentoSeleccionado) {
             $this->emit('error', 'Selecciona un departamento.');
 
@@ -2022,6 +2077,10 @@ class EstadoDepartamentos extends Component
 
     public function crearExpensasDepartamento()
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         if (! $this->tratamientoIdSeleccionado || ! $this->departamentoSeleccionado) {
             $this->emit('error', 'No hay departamento seleccionado.');
 
@@ -2217,6 +2276,10 @@ class EstadoDepartamentos extends Component
 
     public function eliminarExpensa($expensaId)
     {
+        if ($this->bloquearDirectorio()) {
+            return;
+        }
+
         $expensa = DB::table('expensas')
             ->where('id', $expensaId)
             ->first();
