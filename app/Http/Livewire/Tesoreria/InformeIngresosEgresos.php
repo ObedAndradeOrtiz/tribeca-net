@@ -701,7 +701,7 @@ class InformeIngresosEgresos extends Component
             'fecha' => $fechaArchivo,
             'nombre' => $nombre,
             'ruta' => $ruta,
-            'url' => Storage::disk('public')->url($ruta),
+            'url' => '/storage/'.$ruta,
             'size' => filesize($absolutePath),
             'absolute_path' => $absolutePath,
             'zip_path' => $grupo.'/'.$nombre,
