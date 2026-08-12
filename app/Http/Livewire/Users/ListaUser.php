@@ -40,7 +40,6 @@ class ListaUser extends Component
         $busqueda = '%' . $this->busqueda . '%';
 
         $users = User::query()
-            ->where('sucursal', 'LIKE', '%' . $this->areaseleccionada . '%')
             ->where(function ($query) {
                 $query->whereNull('rol')
                     ->orWhereRaw("LOWER(rol) NOT IN ('cliente', 'residente')");
