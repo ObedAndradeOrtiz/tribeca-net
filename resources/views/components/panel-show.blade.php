@@ -364,13 +364,13 @@
 
                                     <div class="menu-sub menu-sub-accordion">
                                         @if (in_array('Administrador', $permisos))
-                                            <div class="menu-item">
+                                            {{-- <div class="menu-item">
                                                 <a class="menu-link" href="/administrador">
                                                     <span class="menu-bullet"><span
                                                             class="bullet bullet-dot"></span></span>
                                                     <span class="menu-title">Roles</span>
                                                 </a>
-                                            </div>
+                                            </div> --}}
 
                                             <div class="menu-item">
                                                 <a class="menu-link" href="/usuarios">
