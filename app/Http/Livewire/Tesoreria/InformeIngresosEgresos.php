@@ -556,14 +556,17 @@ class InformeIngresosEgresos extends Component
 
         $fechaInicio = Carbon::parse($this->imagenFechaInicio)->format('Ymd');
         $fechaFin = Carbon::parse($this->imagenFechaFin)->format('Ymd');
-        $nombreZip = "TRIBECA_IMAGENES_{$fechaInicio}_{$fechaFin}.zip";
-        $carpetaExport = storage_path('app/exports');
+        $nombreZip = "TRIBECA_IMAGENES_{$fechaInicio}_{$fechaFin}_".now()->format('His').'.zip';
+        $carpetaExport = Storage::disk('public')->path('exports');
 
         if (! is_dir($carpetaExport)) {
             mkdir($carpetaExport, 0755, true);
         }
 
-        $rutaZip = $carpetaExport.'/'.$nombreZip;
+        $this->limpiarZipsExportados();
+
+        $rutaRelativaZip = 'exports/'.$nombreZip;
+        $rutaZip = Storage::disk('public')->path($rutaRelativaZip);
         $zip = new ZipArchive;
 
         if ($zip->open($rutaZip, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -578,7 +581,23 @@ class InformeIngresosEgresos extends Component
 
         $zip->close();
 
-        return response()->download($rutaZip, $nombreZip)->deleteFileAfterSend(true);
+        return redirect()->to('/storage/'.$rutaRelativaZip);
+    }
+
+    protected function limpiarZipsExportados()
+    {
+        $exports = Storage::disk('public')->files('exports');
+        $limite = now()->subDays(2)->timestamp;
+
+        foreach ($exports as $archivo) {
+            if (! str_ends_with($archivo, '.zip')) {
+                continue;
+            }
+
+            if (Storage::disk('public')->lastModified($archivo) < $limite) {
+                Storage::disk('public')->delete($archivo);
+            }
+        }
     }
 
     protected function recolectarImagenesPorFecha()
