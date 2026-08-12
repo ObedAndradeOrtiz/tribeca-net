@@ -142,12 +142,6 @@ class RegularizarIngresos extends Component
         ];
 
         $sheet->fromArray($headers, null, 'A1');
-        $sheet->fromArray([
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 'Expensa', 2500, 'DPTO 10A', 2026, '12', 500, 'Diciembre 2026'],
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 'Expensa', 2500, 'DPTO 10A', 2027, '1', 500, 'Enero 2027'],
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Pago expensas', 'Expensa', 2500, 'DPTO 10B', 2026, '11,12', 1000, 'Se aplica en orden de meses'],
-            ['2026-12-30', '10:30', 'JUAN PEREZ', 'COMP-001', 'Alquiler salon', 'Alquiler salon', 2500, '', '', '', 500, 'Alquiler de salon'],
-        ], null, 'A2');
 
         foreach (range('A', 'L') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
