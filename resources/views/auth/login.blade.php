@@ -381,7 +381,13 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+        import {
+            getAuth,
+            getRedirectResult,
+            GoogleAuthProvider,
+            signInWithPopup,
+            signInWithRedirect,
+        } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: @json(config('services.firebase.api_key')),
@@ -396,27 +402,65 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        const button = document.getElementById('btnGoogleResident');
+        const form = document.getElementById('firebaseResidentForm');
+        const tokenInput = document.getElementById('firebaseToken');
 
-        document
-            .getElementById('btnGoogleResident')
-            .addEventListener('click', async function () {
-                const button = this;
+        auth.languageCode = 'es';
+        provider.setCustomParameters({
+            prompt: 'select_account',
+        });
 
-                button.disabled = true;
-                button.innerHTML = '<span class="login-spinner"></span><span>Conectando...</span>';
+        const submitResidentToken = async (user) => {
+            const token = await user.getIdToken();
 
-                try {
-                    const result = await signInWithPopup(auth, provider);
-                    const token = await result.user.getIdToken();
+            tokenInput.value = token;
+            form.submit();
+        };
 
-                    document.getElementById('firebaseToken').value = token;
-                    document.getElementById('firebaseResidentForm').submit();
-                } catch (error) {
-                    button.disabled = false;
-                    button.innerHTML = '<span>G</span> Ingresar con Google';
-                    alert('No se pudo iniciar sesion con Google.');
+        const restoreButton = () => {
+            button.disabled = false;
+            button.innerHTML = '<span>G</span> Ingresar con Google';
+        };
+
+        const isMobileBrowser = () => {
+            return window.matchMedia('(max-width: 768px)').matches
+                || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        };
+
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result?.user) {
+                    button.disabled = true;
+                    button.innerHTML = '<span class="login-spinner"></span><span>Validando...</span>';
+
+                    submitResidentToken(result.user);
                 }
+            })
+            .catch((error) => {
+                restoreButton();
+                alert('No se pudo completar el ingreso con Google. Detalle: ' + (error.code || 'error desconocido'));
             });
+
+        button.addEventListener('click', async function () {
+            button.disabled = true;
+            button.innerHTML = '<span class="login-spinner"></span><span>Conectando...</span>';
+
+            try {
+                if (isMobileBrowser()) {
+                    await signInWithRedirect(auth, provider);
+
+                    return;
+                }
+
+                const result = await signInWithPopup(auth, provider);
+
+                await submitResidentToken(result.user);
+            } catch (error) {
+                restoreButton();
+                alert('No se pudo iniciar sesion con Google. Detalle: ' + (error.code || 'error desconocido'));
+            }
+        });
     </script>
 
 </body>
