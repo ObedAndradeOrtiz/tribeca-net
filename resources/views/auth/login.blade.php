@@ -423,9 +423,13 @@
             button.innerHTML = '<span>G</span> Ingresar con Google';
         };
 
-        const isMobileBrowser = () => {
-            return window.matchMedia('(max-width: 768px)').matches
-                || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        const shouldTryRedirectFallback = (error) => {
+            return [
+                'auth/popup-blocked',
+                'auth/popup-closed-by-user',
+                'auth/cancelled-popup-request',
+                'auth/operation-not-supported-in-this-environment',
+            ].includes(error.code);
         };
 
         getRedirectResult(auth)
@@ -447,16 +451,23 @@
             button.innerHTML = '<span class="login-spinner"></span><span>Conectando...</span>';
 
             try {
-                if (isMobileBrowser()) {
-                    await signInWithRedirect(auth, provider);
-
-                    return;
-                }
-
                 const result = await signInWithPopup(auth, provider);
 
                 await submitResidentToken(result.user);
             } catch (error) {
+                if (shouldTryRedirectFallback(error)) {
+                    button.innerHTML = '<span class="login-spinner"></span><span>Redirigiendo...</span>';
+
+                    try {
+                        await signInWithRedirect(auth, provider);
+                    } catch (redirectError) {
+                        restoreButton();
+                        alert('No se pudo redirigir con Google. Detalle: ' + (redirectError.code || 'error desconocido'));
+                    }
+
+                    return;
+                }
+
                 restoreButton();
                 alert('No se pudo iniciar sesion con Google. Detalle: ' + (error.code || 'error desconocido'));
             }
