@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ResidentAuthController extends Controller
@@ -90,23 +91,18 @@ class ResidentAuthController extends Controller
         $user = User::where('email', $email)->first();
 
         if (! $user) {
-            $user = User::create([
+            $user = User::create($this->residentUserData([
                 'name' => $profile['name'] ?? 'Residente',
                 'email' => $email,
-                'google_id' => $profile['sub'] ?? null,
-                'provider' => 'google',
                 'rol' => 'residente',
                 'estado' => 'Activo',
                 'email_verified_at' => now(),
                 'password' => Hash::make(Str::random(40)),
                 'ocupacion' => '',
                 'path' => '',
-            ]);
+            ], $profile['sub'] ?? null, 'google'));
         } else {
-            $user->forceFill([
-                'google_id' => $user->google_id ?: ($profile['sub'] ?? null),
-                'provider' => $user->provider ?: 'google',
-            ])->save();
+            $this->syncProviderData($user, $profile['sub'] ?? null, 'google');
         }
 
         Auth::login($user, true);
@@ -144,18 +140,17 @@ class ResidentAuthController extends Controller
         }
 
         if (! $user) {
-            $user = User::create([
+            $user = User::create($this->residentUserData([
                 'name' => $accessCode->name ?: 'Residente '.$accessCode->code,
                 'email' => 'codigo.'.Str::lower($accessCode->code).'@residentes.local',
                 'ci' => $accessCode->ci ?: null,
-                'provider' => 'code',
                 'rol' => 'residente',
                 'estado' => 'Activo',
                 'email_verified_at' => now(),
                 'password' => Hash::make(Str::random(40)),
                 'ocupacion' => '',
                 'path' => '',
-            ]);
+            ], null, 'code'));
 
             DB::table('resident_access_codes')
                 ->where('id', $accessCode->id)
@@ -217,27 +212,64 @@ class ResidentAuthController extends Controller
         $user = User::where('email', $email)->first();
 
         if (! $user) {
-            $user = User::create([
+            $user = User::create($this->residentUserData([
                 'name' => $displayName,
                 'email' => $email,
-                'google_id' => $googleId,
-                'provider' => 'firebase',
                 'rol' => 'residente',
                 'estado' => 'Activo',
                 'email_verified_at' => now(),
                 'password' => Hash::make(Str::random(40)),
                 'ocupacion' => '',
                 'path' => '',
-            ]);
+            ], $googleId, 'firebase'));
         } else {
-            $user->forceFill([
-                'google_id' => $user->google_id ?: $googleId,
-                'provider' => $user->provider ?: 'firebase',
-            ])->save();
+            $this->syncProviderData($user, $googleId, 'firebase');
         }
 
         Auth::login($user, true);
 
         return redirect('/dashboard');
+    }
+
+    private function residentUserData(array $data, ?string $googleId, string $provider): array
+    {
+        if ($googleId && $this->usersTableHasColumn('google_id')) {
+            $data['google_id'] = $googleId;
+        }
+
+        if ($this->usersTableHasColumn('provider')) {
+            $data['provider'] = $provider;
+        }
+
+        return $data;
+    }
+
+    private function syncProviderData(User $user, ?string $googleId, string $provider): void
+    {
+        $updates = [];
+        $attributes = $user->getAttributes();
+
+        if ($googleId && $this->usersTableHasColumn('google_id') && empty($attributes['google_id'])) {
+            $updates['google_id'] = $googleId;
+        }
+
+        if ($this->usersTableHasColumn('provider') && empty($attributes['provider'])) {
+            $updates['provider'] = $provider;
+        }
+
+        if ($updates !== []) {
+            $user->forceFill($updates)->save();
+        }
+    }
+
+    private function usersTableHasColumn(string $column): bool
+    {
+        static $columns = [];
+
+        if (! array_key_exists($column, $columns)) {
+            $columns[$column] = Schema::hasColumn('users', $column);
+        }
+
+        return $columns[$column];
     }
 }
